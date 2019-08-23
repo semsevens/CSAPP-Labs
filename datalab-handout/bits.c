@@ -1,7 +1,7 @@
 /* 
  * CS:APP Data Lab 
  * 
- * <Please put your name and userid here>
+ * Soros Liu 2019/08/22
  * 
  * bits.c - Source file with your solutions to the Lab.
  *          This is the file you will hand in to your instructor.
@@ -143,7 +143,12 @@ NOTES:
  *   Rating: 1
  */
 int bitXor(int x, int y) {
-  return 2;
+  /*
+   * 1. x^y = (~x&y) | (x&~y)
+   * 2. ~(a&b) = ~a | ~b, so ~(~a & ~b) = ~~a | ~~b = a | b
+   */
+  int a = ~x & y, b = x & ~y;
+  return ~(~a & ~b);
 }
 /* 
  * tmin - return minimum two's complement integer 
@@ -152,9 +157,10 @@ int bitXor(int x, int y) {
  *   Rating: 1
  */
 int tmin(void) {
-
-  return 2;
-
+  /*
+   * simply TMin32 = [10...0] with 31 0s, so just 1 << 31
+   */
+  return 1 << 31;
 }
 //2
 /*
@@ -165,7 +171,16 @@ int tmin(void) {
  *   Rating: 1
  */
 int isTmax(int x) {
-  return 2;
+  /*
+   * only for
+   *    | 01...11 | 11...11 |
+   * +1 | 10...00 | 00...00 |
+   * ~  | 10...00 | 00...00 |
+   * that we can get x+1 == ~x, which is `a`
+   * so we just need to judge if x is not 0xffffffff, which is `b`
+   */
+  int a = !((x+1) ^ ~x), b = !!(x+1);
+  return a & b;
 }
 /* 
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
@@ -176,7 +191,14 @@ int isTmax(int x) {
  *   Rating: 2
  */
 int allOddBits(int x) {
-  return 2;
+  /*
+   * half the bit vector, `&` the halves until get a 4 bit vector
+   * then test if it has pattern as `[1x1x]` (use mask 0xAA)
+   * it evalutes true iff. all odd bits
+   */
+  int a = (x & (x >> 16));
+  int b = (a & (a >> 8));
+  return !((b & 0xAA) ^ 0xAA);
 }
 /* 
  * negate - return -x 
@@ -186,7 +208,10 @@ int allOddBits(int x) {
  *   Rating: 2
  */
 int negate(int x) {
-  return 2;
+  /*
+   * just the convert rule: -x = ~x + 1
+   */ 
+  return ~x + 1;
 }
 //3
 /* 
@@ -199,7 +224,13 @@ int negate(int x) {
  *   Rating: 3
  */
 int isAsciiDigit(int x) {
-  return 2;
+  /*
+   * y = x - 0x30, so 0x0 <= y <= 0x9
+   * for 0x0 <= y <= 0x7, just right shift 3 bits and check result is 0,
+   * for y = 0x8 or y = 0x9, check as special cases
+   */
+  int y = x + ~0x30 + 1;
+  return (!(y >> 3)) | !(y ^ 0x8) | !(y ^ 0x9);
 }
 /* 
  * conditional - same as x ? y : z 
@@ -209,7 +240,14 @@ int isAsciiDigit(int x) {
  *   Rating: 3
  */
 int conditional(int x, int y, int z) {
-  return 2;
+  /*
+   * with bit operation, we can use this rule:
+   *   when mask = [00...00], (mask & a) | (~mask | b) = b;
+   *   when mask = [11...11], (mask & a) | (~mask | b) = a;
+   * so we try to make these two masks from x
+   */ 
+  int mask = !x + ~1 + 1;
+  return (mask & y) | (~mask & z);
 }
 /* 
  * isLessOrEqual - if x <= y  then return 1, else return 0 
@@ -219,7 +257,21 @@ int conditional(int x, int y, int z) {
  *   Rating: 3
  */
 int isLessOrEqual(int x, int y) {
-  return 2;
+  /*
+   * check 4 cases:
+   *   1. x < 0, y >= 0 => x <= y => return 1
+   *   2. x >= 0, y < 0 => x >= y => return 0
+   *   3. x < 0, y < 0 => y - x >= 0 iff. y >= x, there will be no overflow
+   *   4. x >= 0, y >= 0 => same case as 3
+   * 
+   * so we first check case 1, which is `yIsPos & xIsNeg`
+   * then we check case 3 and 4
+   * but CAUTION HERE: if x >= 0, y < 0, y - x >= 0 when overflow occurs,
+   * so we need to eliminate case 2 as `yIsPos | xIsNeg`, then check if `yMinusXIsPos`
+   */
+  int yIsPos = !(y >> 31), xIsNeg = !((x >> 31) + 1);
+  int yMinusXIsPos = !((y + ~x + 1) >> 31);
+  return (yIsPos & xIsNeg) | ((yIsPos | xIsNeg) & yMinusXIsPos);
 }
 //4
 /* 
@@ -231,7 +283,17 @@ int isLessOrEqual(int x, int y) {
  *   Rating: 4 
  */
 int logicalNeg(int x) {
-  return 2;
+  /*
+   * gather all the bits into the most significant bit
+   * if x == 0, we will get [00...00], right shift 31 bits => 0x0, +1 => 0x1
+   * if x != 0, we will get [10...00], right shift 31 bits => 0xffffffff, +1 => 0x0
+   */
+  int a = x | (x << 16);
+  int b = a | (a << 8);
+  int c = b | (b << 4);
+  int d = c | (c << 2);
+  int e = d | (d << 1);
+  return (e >> 31) + 1;
 }
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
@@ -246,7 +308,48 @@ int logicalNeg(int x) {
  *  Rating: 4
  */
 int howManyBits(int x) {
-  return 0;
+  /*
+   * from `./tests.c` file, 
+   * we can get a fact that if x < 0, then `howManyBits(x) == howManyBits(~x)`
+   * so, `x32` is for this purpose: flip bits if x < 0
+   * 
+   * then, howManyBits is to find the highest position of `1`, plus 1 bit for sign
+   * so we take half of bit vector, to see if high half has `1`
+   * if high half has `1`, then we take this half, record corresponding position (16, 8, 4 ...)
+   * otherwise, we take the low half
+   * can continue until only 1 bit left
+   * 
+   * finally, sum them up, plus 1 for sign bit
+   */
+  int x32 = x ^ (x >> 31);
+  int neg1 = ~1 + 1;
+
+  int high16 = x32 >> 16;
+  int high16With1 = !!high16;
+  int high16Mask = high16With1 + neg1;
+  int x16 = ((~high16Mask & high16) | (high16Mask & x32)) & ((1 << 16) + neg1);
+
+  int high8 = x16 >> 8;
+  int high8With1 = !!high8;
+  int high8Mask = high8With1 + neg1;
+  int x8 = ((~high8Mask & high8) | (high8Mask & x16)) & 0xFF;
+
+  int high4 = x8 >> 4;
+  int high4With1 = !!high4;
+  int high4Mask = high4With1 + neg1;
+  int x4 = ((~high4Mask & high4) | (high4Mask & x8)) & 0x0F;
+
+  int high2 = x4 >> 2;
+  int high2With1 = !!high2;
+  int high2Mask = high2With1 + neg1;
+  int x2 = ((~high2Mask & high2) | (high2Mask & x4)) & 0x03;
+
+  int high1 = x2 >> 1;
+  int high1With1 = !!high1;
+  int high1Mask = high1With1 + neg1;
+  int x1 = ((~high1Mask & high1) | (high1Mask & x2)) & 0x01;
+
+  return (high16With1 << 4) + (high8With1 << 3) + (high4With1 << 2) + (high2With1 << 1) + high1With1 + x1 + 1;
 }
 //float
 /* 
