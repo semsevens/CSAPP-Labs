@@ -1,6 +1,7 @@
 ### Labs for CS:APP3e
 
 - [x] Lab0: c programming lab
+- [x] Lab1: data lab
 
 
 Lab meterials are from [student website](http://csapp.cs.cmu.edu/3e/labs.html)

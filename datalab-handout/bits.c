@@ -364,7 +364,29 @@ int howManyBits(int x) {
  *   Rating: 4
  */
 unsigned floatScale2(unsigned uf) {
-  return 2;
+  // check through case by case
+
+  // get E and M part bit representation
+  int E = (uf >> 23) & 0xFF;
+  int M = uf & 0x7FFFFF;
+  
+  // special case for NaN and inf
+  if (E == 0xFF) {
+    return uf;
+  }
+  // Denormalized case: *2 for fraction part
+  if (!E) {
+    M = M << 1;
+    // floatScale2 result is >= 1, so the result should be normalized
+    if ((M & 0x800000) == 0x800000) {
+      E = 0x01;
+    }
+  }
+  // normalized case: +1 for exponent part
+  else {
+    E ++;
+  }
+  return (uf & 0x80000000) | (E << 23) | (M & 0x7FFFFF);
 }
 /* 
  * floatFloat2Int - Return bit-level equivalent of expression (int) f
@@ -379,7 +401,23 @@ unsigned floatScale2(unsigned uf) {
  *   Rating: 4
  */
 int floatFloat2Int(unsigned uf) {
-  return 2;
+  // get E, M, sign part of float bit representation
+  int E = (uf >> 23) & 0xFF;
+  int M = uf & 0x7FFFFF;
+  int sign = uf & 0x80000000;
+
+  // if E < 127, E-bias = E - 127 < 0, which means uf is (+-)0.xxxx, leading to int 0
+  if (E < 127) {
+    return 0;
+  }
+  // if E > 157, E-bias = E - 127 > 30, which means `out of range`
+  if (E > 157) {
+    return 0x80000000;
+  }
+
+  // result is 1.xxxx * 2^(E-127), so use the shift operation
+  // but take care of sign bit
+  return (sign | (1 << 30) | (M << 7)) >> (157 - E);
 }
 /* 
  * floatPower2 - Return bit-level equivalent of the expression 2.0^x
@@ -395,5 +433,23 @@ int floatFloat2Int(unsigned uf) {
  *   Rating: 4
  */
 unsigned floatPower2(int x) {
-    return 2;
+  /*
+   * 1. the `e` part of single precision float number is in range [-126, 127], can represent value in range [2^-126, 2^127],
+   * 2. the `f` part is 23 bit wide, which means with leading 0, it can be in range [2^-23, 2^-1]
+   * combine together, we can represent integers in range of [2^-149, 2^127]
+   * out of that range, the result should be overflow to be +INF or downflow to be 0
+   * 
+   * for x >= -126, just need to calculate the `E` part
+   * for -149 <= x < -126, just need to calculate the `M` part
+   */
+  if (x > 127) {
+    return 0x7f800000;
+  }
+  if (x >= -126) {
+    return (x+127) << 23;
+  }
+  if (x >= -149) {
+    return 1 << (149 + x);
+  }
+  return 0;
 }
