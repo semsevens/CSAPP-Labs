@@ -12,7 +12,7 @@ Lab meterials are from [student website](http://csapp.cs.cmu.edu/3e/labs.html)
 - [x] Bits, Bytes, & Integers I 
 - [x] Bits, Bytes, & Integers II
 - [x] Floating Point
-- [ ] Machine Prog: Basics
+- [x] Machine Prog: Basics
 - [ ] Machine Prog: Control
 - [ ] Machine Prog: Procedures
 - [ ] Machine Prog: Data
