@@ -13,3 +13,9 @@ $(PROJECT) :  $(INPUT)
 
 clean:
 	rm -f $(PROJECT)
+
+fin3:
+	./act3 `head -n 1 ./solution3.txt`
+
+fin4:
+	./act4 `head -n 1 ./solution4.txt`
