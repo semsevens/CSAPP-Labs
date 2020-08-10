@@ -23,8 +23,8 @@ Lab meterials are from [student website](http://csapp.cs.cmu.edu/3e/labs.html)
 - [x] Machine Prog: Basics
   - [x] reading 3.1-3.5
   - [x] video
-- [ ] Machine Prog: Control
-  - [ ] reading 3.6
+- [x] Machine Prog: Control
+  - [x] reading 3.6
   - [x] video
 - [ ] Machine Prog: Procedures
   - [ ] reading 3.7
