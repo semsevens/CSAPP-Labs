@@ -56,4 +56,13 @@
     400f29:	48 39 eb             	cmp    %rbp,%rbx
     ```
     this moves forward a number, and check if reach the last one. If not, continue the step4 above (check twice equal). If so, finish.
-6. so the solution is `1 2 4 8 16 32`
+6. we can conclude with a pseudo code
+    ```python
+    six_numbers = []
+    if six_numbers[0] != 1:
+        bomb()
+    for i in range(1, 6):
+        if six_numbers[i-1] * 2 != six_numbers[i]:
+            bomb()
+    ```
+7. so the solution is `1 2 4 8 16 32`
