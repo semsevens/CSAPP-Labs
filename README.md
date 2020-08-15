@@ -2,6 +2,7 @@
 
 - [x] Lab0: c programming lab
 - [x] Lab1: data lab
+- [x] Lab2: bomb lab
 
 
 Lab meterials are from [student website](http://csapp.cs.cmu.edu/3e/labs.html)
