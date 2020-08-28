@@ -37,9 +37,9 @@ Lab meterials are from [student website](http://csapp.cs.cmu.edu/3e/labs.html)
 - [x] Machine Prog: Advanced
   - [x] reading 3.10
   - [x] video
-- [ ] Code Optimization
+- [x] Code Optimization
   - [x] reading 5
-  - [ ] video
+  - [x] video
 - [ ] The Memory Hierarchy
   - [ ] reading 6.1-6.3
   - [ ] video
