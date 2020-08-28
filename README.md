@@ -38,7 +38,7 @@ Lab meterials are from [student website](http://csapp.cs.cmu.edu/3e/labs.html)
   - [x] reading 3.10
   - [x] video
 - [ ] Code Optimization
-  - [ ] reading 5
+  - [x] reading 5
   - [ ] video
 - [ ] The Memory Hierarchy
   - [ ] reading 6.1-6.3
@@ -70,7 +70,7 @@ Lab meterials are from [student website](http://csapp.cs.cmu.edu/3e/labs.html)
 - [ ] Dynamic Memory Allocation: Advanced
   - [ ] reading 9.10-9.13
   - [ ] video
-- [ ] Network Programming (Part I) 
+- [ ] Network Programming (Part I)
   - [ ] reading 11.1-11.4
   - [ ] video
 - [ ] Network Programming (Part II)
