@@ -41,7 +41,7 @@ Lab meterials are from [student website](http://csapp.cs.cmu.edu/3e/labs.html)
   - [x] reading 5
   - [x] video
 - [ ] The Memory Hierarchy
-  - [ ] reading 6.1-6.3
+  - [x] reading 6.1-6.3
   - [ ] video
 - [ ] Cache Memories
   - [ ] reading 6.4-6.7
