@@ -40,9 +40,9 @@ Lab meterials are from [student website](http://csapp.cs.cmu.edu/3e/labs.html)
 - [x] Code Optimization
   - [x] reading 5
   - [x] video
-- [ ] The Memory Hierarchy
+- [x] The Memory Hierarchy
   - [x] reading 6.1-6.3
-  - [ ] video
+  - [x] video
 - [ ] Cache Memories
   - [ ] reading 6.4-6.7
   - [ ] video
