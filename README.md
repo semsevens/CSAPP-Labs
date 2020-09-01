@@ -44,7 +44,7 @@ Lab meterials are from [student website](http://csapp.cs.cmu.edu/3e/labs.html)
   - [x] reading 6.1-6.3
   - [x] video
 - [ ] Cache Memories
-  - [ ] reading 6.4-6.7
+  - [x] reading 6.4-6.7
   - [ ] video
 - [ ] Linking
   - [ ] reading 7
