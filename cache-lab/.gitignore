@@ -1,0 +1,5 @@
+csim
+*.tar
+test-trans
+tracegen
+trans.o
