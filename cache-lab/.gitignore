@@ -3,3 +3,7 @@ csim
 test-trans
 tracegen
 trans.o
+.csim_results
+.marker
+trace.f1
+trace.tmp
