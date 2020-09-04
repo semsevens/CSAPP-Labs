@@ -133,7 +133,7 @@ line *initLine(unsigned int B) {
  * initialize a cache set
  */
 set *initSet(unsigned int E, unsigned int B) {
-    set *s = malloc(sizeof(set) + sizeof(line*) * E);
+    set *s = malloc(sizeof(set) + sizeof(line *) * E);
     if (s == NULL) {
         fprintf(stderr, "malloc failed");
         exit(EXIT_FAILURE);
@@ -154,7 +154,7 @@ cache *init(cmdOpts *opts) {
     unsigned int S = 1 << opts->s;
     unsigned int B = 1 << opts->b;
 
-    cache *c = malloc(sizeof(cache) + sizeof(set*) * S);
+    cache *c = malloc(sizeof(cache) + sizeof(set *) * S);
     if (c == NULL) {
         fprintf(stderr, "malloc failed");
         exit(EXIT_FAILURE);
@@ -189,7 +189,7 @@ addrSegment *segmentAddress(unsigned long address, unsigned int s, unsigned int 
     return seg;
 }
 
-void load(unsigned long address, cache *cache) {
+void load(unsigned long address, cache *cache, cmdOpts *opts) {
     addrSegment *seg = segmentAddress(address, cache->s, cache->b);
 
     set *set = cache->sets[seg->setIdx];
@@ -209,11 +209,25 @@ void load(unsigned long address, cache *cache) {
 
     if (hitLineIdx >= 0) {
         cache->hitCount++;
+
+        if (opts->verbose) {
+            printf("hit ");
+        }
+
         set->lines[hitLineIdx]->lruCounter = counter;
     } else {
         cache->missCount++;
+
+        if (opts->verbose) {
+            printf("miss ");
+        }
+
         if (evictLruCounter != COUNTER_START) {
             cache->evictionCount++;
+
+            if (opts->verbose) {
+                printf("eviction ");
+            }
         }
 
         set->lines[evictLineIdx]->valid = true;
@@ -225,7 +239,7 @@ void load(unsigned long address, cache *cache) {
     return;
 }
 
-void store(unsigned long address, cache *cache) {
+void store(unsigned long address, cache *cache, cmdOpts *opts) {
     addrSegment *seg = segmentAddress(address, cache->s, cache->b);
 
     free(seg);
@@ -235,9 +249,14 @@ void store(unsigned long address, cache *cache) {
 /**
  * simulate cache behaviour for each line
  */
-void simulate(char *line, cache *cache) {
+void simulate(char *line, cache *cache, cmdOpts *opts) {
     if (line[0] == 'I') {
         return;
+    }
+
+    if (opts->verbose) {
+        line[strcspn(line, "\n")] = '\0';
+        printf("%s ", line);
     }
 
     char opType = line[1];
@@ -247,17 +266,21 @@ void simulate(char *line, cache *cache) {
 
     switch (opType) {
     case 'L':
-        load(address, cache);
+        load(address, cache, opts);
         break;
     case 'S':
-        load(address, cache);
+        load(address, cache, opts);
         break;
     case 'M':
-        load(address, cache);
-        load(address, cache);
+        load(address, cache, opts);
+        load(address, cache, opts);
         break;
     default:
         break;
+    }
+
+    if (opts->verbose) {
+        printf("\n");
     }
 }
 
@@ -275,7 +298,6 @@ void freeCache(cache *cache) {
 int main(int argc, char *argv[]) {
     cmdOpts *opts = parseCmdOpts(argc, argv);
     cache *cache = init(opts);
-    free(opts);
 
     FILE *fp;
     char *line = NULL;
@@ -289,10 +311,11 @@ int main(int argc, char *argv[]) {
 
     while ((read = getline(&line, &len, fp)) != -1) {
         counter++;
-        simulate(line, cache);
+        simulate(line, cache, opts);
     }
     fclose(fp);
     free(line);
+    free(opts);
 
     printSummary(cache->hitCount, cache->missCount, cache->evictionCount);
 
