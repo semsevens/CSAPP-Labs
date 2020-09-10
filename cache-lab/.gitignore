@@ -2,6 +2,7 @@ csim
 *.tar
 test-trans
 tracegen
+parse-hit-miss
 trans.o
 .csim_results
 .marker
