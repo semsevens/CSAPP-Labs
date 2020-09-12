@@ -1,11 +1,13 @@
-### My progress for labs for CS:APP3e
+### My progress for labs of CS:APP3e
 
 - [x] Lab0: c programming lab
 - [x] Lab1: data lab
 - [x] Lab2: bomb lab
 - [x] Lab3: attack lab
 - [x] Lab4: cache lab
-
+- [ ] Lab5: shell lab
+- [ ] Lab6: malloc lab
+- [ ] Lab7: proxy lab
 
 Lab meterials are from [student website](http://csapp.cs.cmu.edu/3e/labs.html)
 
