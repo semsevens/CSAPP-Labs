@@ -440,6 +440,35 @@ void transpose_64_square_matrix_v7(int M, int N, int A[N][M], int B[M][N]) {
     }
 }
 
+char trans_61x67_square_matrix_desc[] = "Block wise transpose, just need to take care of right-most few columns, only for 61*67 matrix";
+void transpose_61x67_square_matrix(int M, int N, int A[N][M], int B[M][N]) {
+    if (M != 61 || N != 67) {
+        return;
+    }
+
+    const int BSIZE = 8;
+
+    size_t bi, bj;
+    size_t i, j;
+    int a0, a1, a2, a3, a4;
+
+    for (bi = 0; bi < N; bi += BSIZE) {
+        for (bj = 0; bj < M; bj += BSIZE) {
+            if ((bj + BSIZE) < M) {
+                for (i = bi; i < bi + BSIZE && i < N; i++) {
+                    j = bj;
+                    trans_bsize_8(i, j, M, N, A, B);
+                }
+            } else {
+                for (i = bi; i < bi + BSIZE && i < N; i++) {
+                    a0 = A[i][56], a1 = A[i][57], a2 = A[i][58], a3 = A[i][59], a4 = A[i][60];
+                    B[56][i] = a0, B[57][i] = a1, B[58][i] = a2, B[59][i] = a3, B[60][i] = a4;
+                }
+            }
+        }
+    }
+}
+
 /* 
  * transpose_submit - This is the solution transpose function that you
  *     will be graded on for Part B of the assignment. Do not change
@@ -453,6 +482,8 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N]) {
         transpose_32_square_matrix_v2(M, N, A, B);
     } else if (M == 64 && N == 64) {
         transpose_64_square_matrix_v7(M, N, A, B);
+    } else if (M == 61 && N == 67) {
+        transpose_61x67_square_matrix(M, N, A, B);
     } else {
         trans_row_wise(M, N, A, B);
     }
@@ -483,6 +514,8 @@ void registerFunctions() {
     // registerTransFunction(transpose_64_square_matrix_v5, trans_64_square_matrix_v5_desc);
     // registerTransFunction(transpose_64_square_matrix_v6, trans_64_square_matrix_v6_desc);
     // registerTransFunction(transpose_64_square_matrix_v7, trans_64_square_matrix_v7_desc);
+
+    // registerTransFunction(transpose_61x67_square_matrix, trans_61x67_square_matrix_desc);
 }
 
 /* 
