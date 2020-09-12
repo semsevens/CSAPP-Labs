@@ -392,6 +392,54 @@ void transpose_64_square_matrix_v6(int M, int N, int A[N][M], int B[M][N]) {
     }
 }
 
+char trans_64_square_matrix_v7_desc[] = "Block wise transpose, with inner block counter-clock-wise access pattern and 1*4 inner blocksize and temporarily store upper right 2*4 elements in local variables, only for 64*64 matrix";
+void transpose_64_square_matrix_v7(int M, int N, int A[N][M], int B[M][N]) {
+    if (M != N || N != 64) {
+        return;
+    }
+
+    const int BSIZE = 8;
+    const int INNER_BSIZE = 4;
+    size_t bi, bj;
+    size_t i, j;
+
+    // temporary variables
+    int a04, a05, a06, a07, a14, a15, a16, a17;
+
+    for (bi = 0; bi < N; bi += BSIZE) {
+        for (bj = 0; bj < N; bj += BSIZE) {
+
+            // inner upper left
+            trans_bsize_2x4(bi, bj, M, N, A, B);
+
+            // store upper right 2*4 elements
+            a04 = A[bi][bj + 4], a05 = A[bi][bj + 5], a06 = A[bi][bj + 6], a07 = A[bi][bj + 7],
+            a14 = A[bi + 1][bj + 4], a15 = A[bi + 1][bj + 5], a16 = A[bi + 1][bj + 6], a17 = A[bi + 1][bj + 7];
+
+            trans_bsize_2x4(bi + 2, bj, M, N, A, B);
+
+            // inner bottom left
+            for (i = bi + INNER_BSIZE; i < bi + BSIZE; i += 2) {
+                j = bj;
+                trans_bsize_2x4(i, j, M, N, A, B);
+            }
+
+            // inner bottom right
+            for (i = bi + INNER_BSIZE; i < bi + BSIZE; i += 2) {
+                j = bj + INNER_BSIZE;
+                trans_bsize_2x4(i, j, M, N, A, B);
+            }
+
+            // use stored 2*4 elements
+            B[bj + 4][bi] = a04, B[bj + 5][bi] = a05, B[bj + 6][bi] = a06, B[bj + 7][bi] = a07,
+                   B[bj + 4][bi + 1] = a14, B[bj + 5][bi + 1] = a15, B[bj + 6][bi + 1] = a16, B[bj + 7][bi + 1] = a17;
+
+            // inner upper right
+            trans_bsize_2x4(bi + 2, bj + INNER_BSIZE, M, N, A, B);
+        }
+    }
+}
+
 /* 
  * transpose_submit - This is the solution transpose function that you
  *     will be graded on for Part B of the assignment. Do not change
@@ -404,7 +452,7 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N]) {
     if (M == 32 && N == 32) {
         transpose_32_square_matrix_v2(M, N, A, B);
     } else if (M == 64 && N == 64) {
-        transpose_64_square_matrix_v3(M, N, A, B);
+        transpose_64_square_matrix_v7(M, N, A, B);
     } else {
         trans_row_wise(M, N, A, B);
     }
@@ -433,7 +481,8 @@ void registerFunctions() {
     // registerTransFunction(transpose_64_square_matrix_v3, trans_64_square_matrix_v3_desc);
     // registerTransFunction(transpose_64_square_matrix_v4, trans_64_square_matrix_v4_desc);
     // registerTransFunction(transpose_64_square_matrix_v5, trans_64_square_matrix_v5_desc);
-    registerTransFunction(transpose_64_square_matrix_v6, trans_64_square_matrix_v6_desc);
+    // registerTransFunction(transpose_64_square_matrix_v6, trans_64_square_matrix_v6_desc);
+    // registerTransFunction(transpose_64_square_matrix_v7, trans_64_square_matrix_v7_desc);
 }
 
 /* 
