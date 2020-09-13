@@ -49,9 +49,9 @@ Lab meterials are from [student website](http://csapp.cs.cmu.edu/3e/labs.html)
 - [x] Cache Memories
   - [x] reading 6.4-6.7
   - [x] video
-- [ ] Linking
+- [x] Linking
   - [x] reading 7
-  - [ ] video
+  - [x] video
 - [ ] ECF: Exceptions & Processes
   - [ ] reading 8.1-8.4
   - [ ] video
