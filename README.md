@@ -50,7 +50,7 @@ Lab meterials are from [student website](http://csapp.cs.cmu.edu/3e/labs.html)
   - [x] reading 6.4-6.7
   - [x] video
 - [ ] Linking
-  - [ ] reading 7
+  - [x] reading 7
   - [ ] video
 - [ ] ECF: Exceptions & Processes
   - [ ] reading 8.1-8.4
