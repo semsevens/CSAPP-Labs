@@ -52,9 +52,9 @@ Lab meterials are from [student website](http://csapp.cs.cmu.edu/3e/labs.html)
 - [x] Linking
   - [x] reading 7
   - [x] video
-- [ ] ECF: Exceptions & Processes
+- [x] ECF: Exceptions & Processes
   - [x] reading 8.1-8.4
-  - [ ] video
+  - [x] video
 - [ ] ECF: Signals & Nonlocal Jumps
   - [ ] reading 8.5-8.8
   - [ ] video
