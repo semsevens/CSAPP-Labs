@@ -56,7 +56,7 @@ Lab meterials are from [student website](http://csapp.cs.cmu.edu/3e/labs.html)
   - [x] reading 8.1-8.4
   - [x] video
 - [ ] ECF: Signals & Nonlocal Jumps
-  - [ ] reading 8.5-8.8
+  - [x] reading 8.5-8.8
   - [ ] video
 - [ ] System Level I/O
   - [ ] reading 10
