@@ -58,9 +58,9 @@ Lab meterials are from [student website](http://csapp.cs.cmu.edu/3e/labs.html)
 - [x] ECF: Signals & Nonlocal Jumps
   - [x] reading 8.5-8.8
   - [x] video
-- [ ] System Level I/O
+- [x] System Level I/O
   - [x] reading 10
-  - [ ] video
+  - [x] video
 - [ ] Virtual Memory: Concept
   - [ ] reading 9.1-9.6
   - [ ] video
