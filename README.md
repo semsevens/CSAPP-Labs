@@ -59,7 +59,7 @@ Lab meterials are from [student website](http://csapp.cs.cmu.edu/3e/labs.html)
   - [x] reading 8.5-8.8
   - [x] video
 - [ ] System Level I/O
-  - [ ] reading 10
+  - [x] reading 10
   - [ ] video
 - [ ] Virtual Memory: Concept
   - [ ] reading 9.1-9.6
