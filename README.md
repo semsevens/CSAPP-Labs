@@ -5,7 +5,7 @@
 - [x] Lab2: bomb lab
 - [x] Lab3: attack lab
 - [x] Lab4: cache lab
-- [ ] Lab5: shell lab
+- [x] Lab5: shell lab
 - [ ] Lab6: malloc lab
 - [ ] Lab7: proxy lab
 

@@ -9,9 +9,18 @@ TSHREF = ./tshref
 TSHARGS = "-p"
 CC = gcc
 CFLAGS = -Wall -O2
-FILES = $(TSH) ./myspin ./mysplit ./mystop ./myint
+FILES = ./myspin ./mysplit ./mystop ./myint
 
-all: $(FILES)
+all: tsh $(FILES)
+
+csapp.o: csapp.c csapp.h
+	$(CC) $(CFLAGS) -c csapp.c
+
+tsh.o: tsh.c csapp.h
+	$(CC) $(CFLAGS) -c tsh.c
+
+tsh: tsh.o csapp.o
+	$(CC) $(CFLAGS) tsh.o csapp.o -o tsh
 
 ##################
 # Handin your work
@@ -95,6 +104,6 @@ rtest16:
 
 # clean up
 clean:
-	rm -f $(FILES) *.o *~
+	rm -f $(TSH) $(FILES) *.o *~
 
 

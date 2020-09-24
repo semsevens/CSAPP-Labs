@@ -1,4 +1,3 @@
-make[1]: Entering directory `/afs/cs.cmu.edu/project/ics/im/labs/shlab/src'
 ./sdriver.pl -t trace01.txt -s ./tsh -a "-p"
 #
 # trace01.txt - Properly terminate on EOF.
@@ -217,4 +216,3 @@ tsh> jobs
 [1] (26359) Stopped ./mystop 2
 tsh> ./myint 2
 Job [2] (26362) terminated by signal 2
-make[1]: Leaving directory `/afs/cs.cmu.edu/project/ics/im/labs/shlab/src'
