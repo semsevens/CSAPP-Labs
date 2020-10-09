@@ -61,9 +61,9 @@ Lab materials are from [student website](http://csapp.cs.cmu.edu/3e/labs.html)
 - [x] System Level I/O
   - [x] reading 10
   - [x] video
-- [ ] Virtual Memory: Concept
+- [x] Virtual Memory: Concept
   - [x] reading 9.1-9.6
-  - [ ] video
+  - [x] video
 - [ ] Virtual Memory: Systems
   - [ ] reading 9.7-9.8
   - [ ] video
