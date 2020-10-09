@@ -62,7 +62,7 @@ Lab materials are from [student website](http://csapp.cs.cmu.edu/3e/labs.html)
   - [x] reading 10
   - [x] video
 - [ ] Virtual Memory: Concept
-  - [ ] reading 9.1-9.6
+  - [x] reading 9.1-9.6
   - [ ] video
 - [ ] Virtual Memory: Systems
   - [ ] reading 9.7-9.8
