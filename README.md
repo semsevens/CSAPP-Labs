@@ -9,7 +9,7 @@
 - [ ] Lab6: malloc lab
 - [ ] Lab7: proxy lab
 
-Lab meterials are from [student website](http://csapp.cs.cmu.edu/3e/labs.html)
+Lab materials are from [student website](http://csapp.cs.cmu.edu/3e/labs.html)
 
 ### My progress for [CMU 15-213: Intro to Computer Systems, Fall 2017](http://www.cs.cmu.edu/afs/cs/academic/class/15213-f17/www/schedule.html)
 
