@@ -65,7 +65,7 @@ Lab materials are from [student website](http://csapp.cs.cmu.edu/3e/labs.html)
   - [x] reading 9.1-9.6
   - [x] video
 - [ ] Virtual Memory: Systems
-  - [ ] reading 9.7-9.8
+  - [x] reading 9.7-9.8
   - [ ] video
 - [ ] Dynamic Memory Allocation: Basic
   - [ ] reading 9.9
