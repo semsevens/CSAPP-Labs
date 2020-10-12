@@ -1,0 +1,32 @@
+This lab is from https://www.cs.cmu.edu/afs/cs/academic/class/15213-f10/www/labs/proclab-handout.tar.gz
+
+#####################################################################
+# 15-213 Proclab
+#
+# Student Source Files
+######################################################################
+
+You can always download the latest copy of the 
+handout from the Autolab website. It is not included in this tarball.
+
+This directory contains the files you will need for  ProcLab
+
+puzzles.c
+    This is the file you will be modifying and handing in.
+
+###############################################
+# You shouldn't modify any of these files below
+###############################################
+driver.a
+    This is an archive of object files that will be linked with
+    puzzles.o to produce the driver binary
+
+decipher :
+    A helper program for one of the puzzles
+
+Makefile:
+    This is the makefile that builds the driver program.
+
+README:
+    This file itself.
+
