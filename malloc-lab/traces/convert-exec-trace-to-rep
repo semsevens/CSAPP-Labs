@@ -1,0 +1,71 @@
+#!/usr/local/bin/perl -w
+
+use strict;
+
+# map from pointer to ID; undef means it's been freed
+# we can't use exists because one address may be reused.
+my %pointers;
+
+# the number of IDs used so far
+my $n = 0;
+
+my @outlines;
+
+while(<>) {
+    s/#.*//;
+    chomp;
+    next if !length;
+    my ($fn, $p, @args) = split;
+
+    if($fn eq 'm') {
+        my $sz = $args[0];
+        my $id = $n++;
+
+        die "$p not free" if defined $pointers{$p};
+        $pointers{$p} = $id;
+
+        push @outlines, "a $id $sz";
+
+    } elsif($fn eq 'c') {
+        my $sz = $args[0] * $args[1];
+        my $id = $n++;
+
+        die "$p not free" if defined $pointers{$p};
+        $pointers{$p} = $id;
+
+        push @outlines, "a $id $sz";
+
+    } elsif($fn eq 'r') {
+        my $oldp = $args[0];
+        my $sz = $args[1];
+        my $id = $pointers{$oldp};
+
+        die "$oldp not allocated" if $oldp ne '0' && !defined $id;
+        $id = $n++ if !defined $id;
+        if($p ne $oldp) {
+            die "$p allocated" if defined $pointers{$p};
+
+            $pointers{$p} = $id;
+            $pointers{$oldp} = undef;
+        }
+
+        push @outlines, "r $id $sz";
+
+    } elsif($fn eq 'f') {
+        my $id = $pointers{$p};
+
+        die "$p not allocated" if $p ne '0' && !defined $id;
+
+        $pointers{$p} = undef;
+        $id = '-1' if !defined $id;
+
+        push @outlines, "f $id";
+    }
+}
+
+print "0\n";            # unused
+print "$n\n";           # number of memory chunks
+print scalar(@outlines), "\n";    # number of operations
+print "0\n";            # unused
+print join("\n", @outlines);
+print "\n";
