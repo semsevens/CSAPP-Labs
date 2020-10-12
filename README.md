@@ -13,6 +13,8 @@ Lab materials are from [student website](http://csapp.cs.cmu.edu/3e/labs.html)
 
 ### My progress for [CMU 15-213: Intro to Computer Systems, Fall 2017](http://www.cs.cmu.edu/afs/cs/academic/class/15213-f17/www/schedule.html)
 
+choose fall 2017 because this semester's videos are available on youtube
+
 - [x] Overview
   - [x] reading 1
   - [x] video
@@ -68,7 +70,7 @@ Lab materials are from [student website](http://csapp.cs.cmu.edu/3e/labs.html)
   - [x] reading 9.7-9.8
   - [x] video
 - [ ] Dynamic Memory Allocation: Basic
-  - [ ] reading 9.9
+  - [x] reading 9.9
   - [ ] video
 - [ ] Dynamic Memory Allocation: Advanced
   - [ ] reading 9.10-9.13
