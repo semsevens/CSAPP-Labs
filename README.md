@@ -69,9 +69,9 @@ choose fall 2017 because this semester's videos are available on youtube
 - [x] Virtual Memory: Systems
   - [x] reading 9.7-9.8
   - [x] video
-- [ ] Dynamic Memory Allocation: Basic
+- [x] Dynamic Memory Allocation: Basic
   - [x] reading 9.9
-  - [ ] video
+  - [x] video
 - [ ] Dynamic Memory Allocation: Advanced
   - [ ] reading 9.10-9.13
   - [ ] video
