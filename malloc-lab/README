@@ -45,6 +45,3 @@ To get a list of the driver flags:
 	unix> ./mdriver -h
 
 The -V option prints out helpful tracing information
-
-
-
