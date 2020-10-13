@@ -6,13 +6,12 @@
  * May not be used, modified, or copied without permission.
  */
 
+#include "clock.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <sys/times.h>
-#include "clock.h"
-
+#include <unistd.h>
 
 /******************************************************* 
  * Machine dependent functions 
@@ -27,32 +26,27 @@
  * Pentium versions of start_counter() and get_counter()
  *******************************************************/
 
-
 /* $begin x86cyclecounter */
 /* Initialize the cycle counter */
 static unsigned cyc_hi = 0;
 static unsigned cyc_lo = 0;
 
-
 /* Set *hi and *lo to the high and low order bits  of the cycle counter.  
    Implementation requires assembly code to use the rdtsc instruction. */
-void access_counter(unsigned *hi, unsigned *lo)
-{
-    asm("rdtsc; movl %%edx,%0; movl %%eax,%1"   /* Read cycle counter */
-	: "=r" (*hi), "=r" (*lo)                /* and move results to */
-	: /* No input */                        /* the two outputs */
-	: "%edx", "%eax");
+void access_counter(unsigned *hi, unsigned *lo) {
+    asm("rdtsc; movl %%edx,%0; movl %%eax,%1" /* Read cycle counter */
+        : "=r"(*hi), "=r"(*lo)                /* and move results to */
+        : /* No input */                      /* the two outputs */
+        : "%edx", "%eax");
 }
 
 /* Record the current value of the cycle counter. */
-void start_counter()
-{
+void start_counter() {
     access_counter(&cyc_hi, &cyc_lo);
 }
 
 /* Return the number of cycles since the last call to start_counter. */
-double get_counter()
-{
+double get_counter() {
     unsigned ncyc_hi, ncyc_lo;
     unsigned hi, lo, borrow;
     double result;
@@ -64,9 +58,9 @@ double get_counter()
     lo = ncyc_lo - cyc_lo;
     borrow = lo > ncyc_lo;
     hi = ncyc_hi - cyc_hi - borrow;
-    result = (double) hi * (1 << 30) * 4 + lo;
+    result = (double)hi * (1 << 30) * 4 + lo;
     if (result < 0) {
-	fprintf(stderr, "Error: counter returns neg value: %.0f\n", result);
+        fprintf(stderr, "Error: counter returns neg value: %.0f\n", result);
     }
     return result;
 }
@@ -81,7 +75,6 @@ double get_counter()
 /* Initialize the cycle counter */
 static unsigned cyc_hi = 0;
 static unsigned cyc_lo = 0;
-
 
 /* Use Alpha cycle timer to compute cycles.  Then use
    measured clock speed to compute seconds 
@@ -100,25 +93,21 @@ static unsigned cyc_lo = 0;
  * 450MhZ clock the counter can time things for about 9 
  * seconds. */
 static unsigned int counterRoutine[] =
-{
-    0x601fc000u,
-    0x401f0000u,
-    0x6bfa8001u
-};
+    {
+        0x601fc000u,
+        0x401f0000u,
+        0x6bfa8001u};
 
 /* Cast the above instructions into a function. */
-static unsigned int (*counter)(void)= (void *)counterRoutine;
+static unsigned int (*counter)(void) = (void *)counterRoutine;
 
-
-void start_counter()
-{
+void start_counter() {
     /* Get cycle counter */
     cyc_hi = 0;
     cyc_lo = counter();
 }
 
-double get_counter()
-{
+double get_counter() {
     unsigned ncyc_hi, ncyc_lo;
     unsigned hi, lo, borrow;
     double result;
@@ -127,9 +116,9 @@ double get_counter()
     lo = ncyc_lo - cyc_lo;
     borrow = lo > ncyc_lo;
     hi = ncyc_hi - cyc_hi - borrow;
-    result = (double) hi * (1 << 30) * 4 + lo;
+    result = (double)hi * (1 << 30) * 4 + lo;
     if (result < 0) {
-	fprintf(stderr, "Error: Cycle counter returning negative value: %.0f\n", result);
+        fprintf(stderr, "Error: Cycle counter returning negative value: %.0f\n", result);
     }
     return result;
 }
@@ -144,16 +133,14 @@ double get_counter()
  * haven't provided a Sparc version here.
  ***************************************************************/
 
-void start_counter()
-{
+void start_counter() {
     printf("ERROR: You are trying to use a start_counter routine in clock.c\n");
     printf("that has not been implemented yet on this platform.\n");
     printf("Please choose another timing package in config.h.\n");
     exit(1);
 }
 
-double get_counter() 
-{
+double get_counter() {
     printf("ERROR: You are trying to use a get_counter routine in clock.c\n");
     printf("that has not been implemented yet on this platform.\n");
     printf("Please choose another timing package in config.h.\n");
@@ -161,43 +148,38 @@ double get_counter()
 }
 #endif
 
-
-
-
 /*******************************
  * Machine-independent functions
  ******************************/
-double ovhd()
-{
+double ovhd() {
     /* Do it twice to eliminate cache effects */
     int i;
     double result;
 
     for (i = 0; i < 2; i++) {
-	start_counter();
-	result = get_counter();
+        start_counter();
+        result = get_counter();
     }
     return result;
 }
 
 /* $begin mhz */
 /* Get the clock rate from /proc */
-double mhz_full(int verbose, int sleeptime __attribute__((unused)))
-{
+double mhz_full(int verbose, int sleeptime __attribute__((unused))) {
     static char buf[2048];
 
     FILE *fp = fopen("/proc/cpuinfo", "r");
     double mhz = 0.0;
 
     while (fgets(buf, 2048, fp)) {
-	if (strstr(buf, "cpu MHz")) {
-	    sscanf(buf, "cpu MHz\t: %lf", &mhz);
-	    break;
-	}
+        if (strstr(buf, "cpu MHz")) {
+            sscanf(buf, "cpu MHz\t: %lf", &mhz);
+            break;
+        }
     }
     fclose(fp);
-    if (verbose) 
-	printf("Processor clock rate ~= %.1f MHz\n", mhz);
+    if (verbose)
+        printf("Processor clock rate ~= %.1f MHz\n", mhz);
     return mhz;
 
 #if 0
@@ -214,8 +196,7 @@ double mhz_full(int verbose, int sleeptime __attribute__((unused)))
 /* $end mhz */
 
 /* Version using a default sleeptime */
-double mhz(int verbose)
-{
+double mhz(int verbose) {
     return mhz_full(verbose, 2);
 }
 
@@ -228,8 +209,7 @@ static double cyc_per_tick = 0.0;
 #define RECORDTHRESH 3000
 
 /* Attempt to see how much time is used by timer interrupt */
-static void callibrate(int verbose)
-{
+static void callibrate(int verbose) {
     double oldt;
     struct tms t;
     clock_t oldc;
@@ -239,47 +219,45 @@ static void callibrate(int verbose)
     oldc = t.tms_utime;
     start_counter();
     oldt = get_counter();
-    while (e <NEVENT) {
-	double newt = get_counter();
+    while (e < NEVENT) {
+        double newt = get_counter();
 
-	if (newt-oldt >= THRESHOLD) {
-	    clock_t newc;
-	    times(&t);
-	    newc = t.tms_utime;
-	    if (newc > oldc) {
-		double cpt = (newt-oldt)/(newc-oldc);
-		if ((cyc_per_tick == 0.0 || cyc_per_tick > cpt) && cpt > RECORDTHRESH)
-		    cyc_per_tick = cpt;
-		/*
+        if (newt - oldt >= THRESHOLD) {
+            clock_t newc;
+            times(&t);
+            newc = t.tms_utime;
+            if (newc > oldc) {
+                double cpt = (newt - oldt) / (newc - oldc);
+                if ((cyc_per_tick == 0.0 || cyc_per_tick > cpt) && cpt > RECORDTHRESH)
+                    cyc_per_tick = cpt;
+                /*
 		  if (verbose)
 		  printf("Saw event lasting %.0f cycles and %d ticks.  Ratio = %f\n",
 		  newt-oldt, (int) (newc-oldc), cpt);
 		*/
-		e++;
-		oldc = newc;
-	    }
-	    oldt = newt;
-	}
+                e++;
+                oldc = newc;
+            }
+            oldt = newt;
+        }
     }
     if (verbose)
-	printf("Setting cyc_per_tick to %f\n", cyc_per_tick);
+        printf("Setting cyc_per_tick to %f\n", cyc_per_tick);
 }
 
 static clock_t start_tick = 0;
 
-void start_comp_counter() 
-{
+void start_comp_counter() {
     struct tms t;
 
     if (cyc_per_tick == 0.0)
-	callibrate(0);
+        callibrate(0);
     times(&t);
     start_tick = t.tms_utime;
     start_counter();
 }
 
-double get_comp_counter() 
-{
+double get_comp_counter() {
     double time = get_counter();
     double ctime;
     struct tms t;
@@ -287,11 +265,10 @@ double get_comp_counter()
 
     times(&t);
     ticks = t.tms_utime - start_tick;
-    ctime = time - ticks*cyc_per_tick;
+    ctime = time - ticks * cyc_per_tick;
     /*
       printf("Measured %.0f cycles.  Ticks = %d.  Corrected %.0f cycles\n",
       time, (int) ticks, ctime);
     */
     return ctime;
 }
-

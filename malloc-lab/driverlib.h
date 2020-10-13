@@ -39,10 +39,8 @@ int init_driver(char *status_msg);
 
 /* driver_post - Transmit an autoresult string to Autolab */
 int driver_post(char *userid,      /* Userid */
-		char *result,      /* Result string to submit */
-		int autograded,    /* True if called by an autograder */
-		char *status_msg); /* Return status msg */
+                char *result,      /* Result string to submit */
+                int autograded,    /* True if called by an autograder */
+                char *status_msg); /* Return status msg */
 
 #endif /* __DRIVERLIB_H__ */
-
-
