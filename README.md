@@ -73,9 +73,9 @@ choose fall 2017 because this semester's videos are available on youtube
 - [x] Dynamic Memory Allocation: Basic
   - [x] reading 9.9
   - [x] video
-- [ ] Dynamic Memory Allocation: Advanced
+- [x] Dynamic Memory Allocation: Advanced
   - [x] reading 9.10-9.13
-  - [ ] video
+  - [x] video
 - [ ] Network Programming (Part I)
   - [ ] reading 11.1-11.4
   - [ ] video
