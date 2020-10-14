@@ -1,3 +1,12 @@
+/*
+ * only check compile warning for mm*.c files, and report any warning as error
+ * 
+ * the original Makefile gcc flag is `-Wall -Wextra -Werror`
+ * ref: http://gcc.gnu.org/onlinedocs/gcc/Diagnostic-Pragmas.html
+ */
+#pragma GCC diagnostic error "-Wall"
+#pragma GCC diagnostic error "-Wextra"
+
 #include <stdio.h>
 
 #ifdef DRIVER

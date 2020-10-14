@@ -49,7 +49,7 @@ void *malloc(size_t size) {
  */
 void free(void *ptr) {
     /*Get gcc to be quiet */
-    ptr = NULL;
+    ptr = ptr;
 }
 
 /*
@@ -110,5 +110,5 @@ void *calloc(size_t nmemb, size_t size) {
  */
 void mm_checkheap(int verbose) {
     /*Get gcc to be quiet. */
-    verbose = 1;
+    verbose = verbose;
 }

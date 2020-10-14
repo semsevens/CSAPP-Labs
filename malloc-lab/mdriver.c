@@ -25,6 +25,11 @@
 #include "memlib.h"
 #include "mm.h"
 
+/*
+ * not care about gcc warnings in this file
+ */
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+
 /**********************
  * Constants and macros
  **********************/
