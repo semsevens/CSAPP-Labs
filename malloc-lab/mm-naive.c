@@ -18,6 +18,15 @@
 #include "memlib.h"
 #include "mm.h"
 
+/* do not change the following! */
+#ifdef DRIVER
+/* create aliases for driver tests */
+#define malloc mm_malloc
+#define free mm_free
+#define realloc mm_realloc
+#define calloc mm_calloc
+#endif /* def DRIVER */
+
 /*
  * mm_init - Called when a new trace starts.
  */
@@ -32,7 +41,7 @@ int mm_init(void) {
 void *malloc(size_t size) {
     int newsize = ALIGN(size + SIZE_T_SIZE);
     unsigned char *p = mem_sbrk(newsize);
-    //dbg_printf("malloc %u => %p\n", size, p);
+    dbg_printf("malloc %lu => %p\n", size, p);
 
     if ((long)p < 0)
         return NULL;
@@ -48,8 +57,7 @@ void *malloc(size_t size) {
  *      Computers have big memories; surely it won't be a problem.
  */
 void free(void *ptr) {
-    /*Get gcc to be quiet */
-    ptr = ptr;
+    dbg_printf("free %p\n", ptr);
 }
 
 /*

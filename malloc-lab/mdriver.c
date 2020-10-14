@@ -218,7 +218,7 @@ static void run_tests(int num_tracefiles, const char *tracedir,
             mm_stats[i].valid = 0;
         } else {
             if (verbose > 1)
-                printf("Checking mm_malloc for correctness, ");
+                printf("Checking mm_malloc for correctness:\n");
             mm_stats[i].valid = eval_mm_valid(trace, &ranges);
 
             if (onetime_flag) {
@@ -228,12 +228,12 @@ static void run_tests(int num_tracefiles, const char *tracedir,
         }
         if (mm_stats[i].valid) {
             if (verbose > 1)
-                printf("efficiency, ");
+                printf("\nefficiency:\n");
             mm_stats[i].util = eval_mm_util(trace, i);
             speed_params->trace = trace;
             speed_params->ranges = ranges;
             if (verbose > 1)
-                printf("and performance.\n");
+                printf("\nperformance:\n");
             mm_stats[i].secs = fsecs(eval_mm_speed, speed_params);
         }
         free_trace(trace);
@@ -1006,8 +1006,6 @@ static double eval_mm_util(trace_t *trace, int tracenum) {
         /* update the high-water mark */
         max_total_size = (total_size > max_total_size) ? total_size : max_total_size;
     }
-
-    printf(".");
 
     return ((double)max_total_size / (double)mem_heapsize());
 }

@@ -10,6 +10,15 @@
 #include "memlib.h"
 #include "mm.h"
 
+/* do not change the following! */
+#ifdef DRIVER
+/* create aliases for driver tests */
+#define malloc mm_malloc
+#define free mm_free
+#define realloc mm_realloc
+#define calloc mm_calloc
+#endif /* def DRIVER */
+
 /*
  * mm_init - Called when a new trace starts.
  */

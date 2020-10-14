@@ -42,15 +42,6 @@ extern void mm_checkheap(int verbose);
 #define dbg_printf(...)
 #endif
 
-/* do not change the following! */
-#ifdef DRIVER
-/* create aliases for driver tests */
-#define malloc mm_malloc
-#define free mm_free
-#define realloc mm_realloc
-#define calloc mm_calloc
-#endif /* def DRIVER */
-
 /* single word (4) or double word (8) alignment */
 #define ALIGNMENT 8
 

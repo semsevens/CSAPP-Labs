@@ -31,8 +31,8 @@
  */
 
 void sigalrm_handler(int sig) {
-    fprintf(stderr, "Program timed out after %d seconds by sig %d\n", AUTOGRADE_TIMEOUT, sig);
-    // sig=sig;
+    fprintf(stderr, "Program timed out after %d seconds\n", AUTOGRADE_TIMEOUT);
+    sig=sig;
     exit(1);
 }
 
@@ -323,8 +323,8 @@ int init_driver(char *status_msg) {
 
     /* Ignore any terminating SIGPIPE signals */
     signal(SIGPIPE, SIG_IGN);
-    // signal(SIGPOLL, SIG_IGN);
-    // signal(SIGPOLL, SIG_IGN);
+    signal(SIGPOLL, SIG_IGN);
+    signal(SIGPOLL, SIG_IGN);
 
     /*
 	 * Make sure that we can talk to the server 
