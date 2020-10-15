@@ -410,7 +410,7 @@ int main(int argc, char **argv) {
     /* Display the mm results in a compact table */
     if (verbose) {
         if (onetime_flag) {
-            printf("\n\ncorrectness check finished, by running tracefile \"%s\".\n", tracefiles[num_tracefiles - 1]);
+            printf("\ncorrectness check finished, by running tracefile \"%s\".", tracefiles[num_tracefiles - 1]);
             if (mm_stats[num_tracefiles - 1].valid) {
                 printf(" => correct.\n\n");
             } else {

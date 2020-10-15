@@ -67,6 +67,7 @@ void *malloc(size_t size) {
  *      Computers have big memories; surely it won't be a problem.
  */
 void free(void *ptr) {
+    ptr=ptr;
     dbg_printf("free %p\n", ptr);
 }
 

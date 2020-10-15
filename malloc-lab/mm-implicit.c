@@ -113,6 +113,9 @@ void *malloc(size_t size) {
  * free
  */
 void free(void *ptr) {
+    if (ptr == NULL)
+        return;
+    
     dbg_printf("free %p\n", ptr);
     size_t size = GET_SIZE(HDRP(ptr));
 
