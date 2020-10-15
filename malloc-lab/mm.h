@@ -1,4 +1,8 @@
 /*
+ * header for mm.c
+ */
+
+/*
  * only check compile warning for mm*.c files, and report any warning as error
  * 
  * the original Makefile gcc flag is `-Wall -Wextra -Werror`
@@ -10,21 +14,17 @@
 #include <stdio.h>
 
 #ifdef DRIVER
-
 /* declare functions for driver tests */
 extern void *mm_malloc(size_t size);
 extern void mm_free(void *ptr);
 extern void *mm_realloc(void *ptr, size_t size);
 extern void *mm_calloc(size_t nmemb, size_t size);
-
 #else
-
 /* declare functions for interpositioning */
 extern void *malloc(size_t size);
 extern void free(void *ptr);
 extern void *realloc(void *ptr, size_t size);
 extern void *calloc(size_t nmemb, size_t size);
-
 #endif
 
 extern int mm_init(void);
@@ -33,21 +33,22 @@ extern int mm_init(void);
    verbose flag; we don't care. */
 extern void mm_checkheap(int verbose);
 
-/* If you want debugging output, use the following macro.  When you hand
- * in, remove the #define DEBUG line. */
-#define DEBUG
+/*
+ * If DEBUG is defined, enable printing on dbg_printf and contracts.
+ * Debugging macros, with names beginning "dbg_" are allowed.
+ * You may not define any other macros having arguments.
+ */
+
 #ifdef DEBUG
+/* When debugging is enabled, these form aliases to useful functions */
 #define dbg_printf(...) printf(__VA_ARGS__)
+#define dbg_requires(...) assert(__VA_ARGS__)
+#define dbg_assert(...) assert(__VA_ARGS__)
+#define dbg_ensures(...) assert(__VA_ARGS__)
 #else
+/* When debugging is disnabled, no code gets generated for these */
 #define dbg_printf(...)
+#define dbg_requires(...)
+#define dbg_assert(...)
+#define dbg_ensures(...)
 #endif
-
-/* single word (4) or double word (8) alignment */
-#define ALIGNMENT 8
-
-/* rounds up to the nearest multiple of ALIGNMENT */
-#define ALIGN(size) (((size) + (ALIGNMENT - 1)) & ~0x7)
-
-#define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
-
-#define SIZE_PTR(p) ((size_t *)(((char *)(p)) - SIZE_T_SIZE))
