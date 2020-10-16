@@ -1,7 +1,7 @@
 /*
  * mm-implicit.c
  * 
- * code is from CSAPP 3e textbook section 9.9
+ * code is based on CSAPP 3e textbook section 9.9
  */
 
 #include <assert.h>
@@ -115,7 +115,7 @@ void *malloc(size_t size) {
 void free(void *ptr) {
     if (ptr == NULL)
         return;
-    
+
     dbg_printf("free %p\n", ptr);
     size_t size = GET_SIZE(HDRP(ptr));
 
@@ -186,8 +186,8 @@ void *calloc(size_t nmemb, size_t size) {
 /*
  * mm_checkheap
  */
-void mm_checkheap(int verbose) {
-    verbose = verbose;
+bool mm_checkheap(int lineno) {
+    return (bool)lineno;
 }
 
 static void *extend_heap(size_t words) {

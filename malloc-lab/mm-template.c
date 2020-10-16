@@ -30,6 +30,7 @@ int mm_init(void) {
  * malloc
  */
 void *malloc(size_t size) {
+    size = size;
     return NULL;
 }
 
@@ -37,12 +38,15 @@ void *malloc(size_t size) {
  * free
  */
 void free(void *ptr) {
+    ptr = ptr;
 }
 
 /*
  * realloc
  */
 void *realloc(void *oldptr, size_t size) {
+    oldptr = oldptr;
+    size = size;
     return NULL;
 }
 
@@ -50,11 +54,14 @@ void *realloc(void *oldptr, size_t size) {
  * calloc
  */
 void *calloc(size_t nmemb, size_t size) {
+    nmemb = nmemb;
+    size = size;
     return NULL;
 }
 
 /*
  * mm_checkheap
  */
-void mm_checkheap(int verbose) {
+bool mm_checkheap(int lineno) {
+    return (bool)lineno;
 }

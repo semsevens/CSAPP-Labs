@@ -11,6 +11,7 @@
 #pragma GCC diagnostic error "-Wall"
 #pragma GCC diagnostic error "-Wextra"
 
+#include <stdbool.h>
 #include <stdio.h>
 
 #ifdef DRIVER
@@ -29,9 +30,8 @@ extern void *calloc(size_t nmemb, size_t size);
 
 extern int mm_init(void);
 
-/* This is largely for debugging.  You can do what you want with the
-   verbose flag; we don't care. */
-extern void mm_checkheap(int verbose);
+/* This is largely for debugging */
+extern bool mm_checkheap(int lineno);
 
 /*
  * If DEBUG is defined, enable printing on dbg_printf and contracts.

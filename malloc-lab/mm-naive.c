@@ -67,7 +67,7 @@ void *malloc(size_t size) {
  *      Computers have big memories; surely it won't be a problem.
  */
 void free(void *ptr) {
-    ptr=ptr;
+    ptr = ptr;
     dbg_printf("free %p\n", ptr);
 }
 
@@ -127,7 +127,6 @@ void *calloc(size_t nmemb, size_t size) {
  * mm_checkheap - There are no bugs in my code, so I don't need to check,
  *      so nah!
  */
-void mm_checkheap(int verbose) {
-    /*Get gcc to be quiet. */
-    verbose = verbose;
+bool mm_checkheap(int lineno) {
+    return (bool)lineno;
 }
