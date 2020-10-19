@@ -469,7 +469,7 @@ int main(int argc, char **argv) {
         }
 
         perfindex = (p1 + p2) * 100.0;
-        printf("Perf index = %.0f (util) + %.0f (thru) = %.0f/100\n",
+        printf("Perf index = %.2f (util) + %.2f (thru) = %.2f/100\n",
                p1 * 100,
                p2 * 100,
                perfindex);
