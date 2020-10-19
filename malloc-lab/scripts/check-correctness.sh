@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-make CFLAGS='-O2 -g -DDRIVER -DDEBUG' -B
+make CFLAGS='-O2 -g -DDRIVER' -B
 
 CORRECTNESS_CHECK_REPS="malloc malloc-free realloc short1 short2 corners"
 

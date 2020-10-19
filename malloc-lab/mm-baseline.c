@@ -98,7 +98,7 @@ int mm_init(void) {
     word_t *start = (word_t *)(mem_sbrk(4 * wsize));
 
     if (start == (void *)-1) {
-        return false;
+        return -1;
     }
 
     start[1] = pack(dsize, true); // Prologue header
@@ -109,9 +109,9 @@ int mm_init(void) {
 
     // Extend the empty heap with a free block of chunksize bytes
     if (extend_heap(chunksize) == NULL) {
-        return false;
+        return -1;
     }
-    return true;
+    return 0;
 }
 
 /*
