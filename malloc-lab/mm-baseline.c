@@ -89,22 +89,22 @@ bool mm_checkheap(int lineno);
 /*
  * mm_init: initializes the heap; it is run once when heap_start == NULL.
  *          prior to any extend_heap operation, this is the heap:
- *              start            start+4           start+8
- * TODO: might not be aligned
- *          INIT: | PROLOGUE_FOOTER | EPILOGUE_HEADER |
+ *              start                start+4           start+8            start+12          start+16
+ *          INIT: | UNUSED_ALIGN_PADDING | PROLOGUE_HEADER | PROLOGUE_FOOTER | EPILOGUE_HEADER |
  * heap_listp ends up pointing to the epilogue header.
  */
 int mm_init(void) {
     // Create the initial empty heap
-    word_t *start = (word_t *)(mem_sbrk(2 * wsize));
+    word_t *start = (word_t *)(mem_sbrk(4 * wsize));
 
     if (start == (void *)-1) {
         return false;
     }
 
-    start[0] = pack(0, true); // Prologue footer
-    start[1] = pack(0, true); // Epilogue header
-    // Heap starts with first block header (epilogue)
+    start[1] = pack(dsize, true); // Prologue header
+    start[2] = pack(dsize, true); // Prologue footer
+    start[3] = pack(0, true); // Epilogue header
+    // Heap starts with prologue footer
     heap_listp = (block_t *)&(start[1]);
 
     // Extend the empty heap with a free block of chunksize bytes
@@ -176,6 +176,7 @@ void free(void *bp) {
     if (bp == NULL) {
         return;
     }
+    dbg_printf("free %p\n", bp);
 
     block_t *block = payload_to_header(bp);
     size_t size = get_size(block);
@@ -269,6 +270,8 @@ static block_t *extend_heap(size_t size) {
     if ((bp = mem_sbrk(size)) == (void *)-1) {
         return NULL;
     }
+
+    dbg_printf("extend heap by size %zd\n", size);
 
     // Initialize free block header/footer
     block_t *block = payload_to_header(bp);
@@ -390,8 +393,8 @@ static size_t extract_size(word_t word) {
 }
 
 /*
- * get_size: returns the size of a given block by clearing the lowest 4 bits
- *           (as the heap is 16-byte aligned).
+ * get_size: returns the size of a given block by clearing the lowest 3 bits
+ *           (as the heap is 8-byte aligned).
  */
 static size_t get_size(block_t *block) {
     return extract_size(block->header);
@@ -507,12 +510,14 @@ bool mm_checkheap(int lineno) {
     block_t *next;
     block_t *hi = mem_heap_hi();
 
+    dbg_printf("heap size %lu", mem_heapsize());
     while ((next = find_next(curr)) + 1 < hi) {
         word_t hdr = curr->header;
         word_t ftr = *find_prev_footer(next);
+        dbg_printf("check header (0x%08X), footer (0x%08X) at %p\n", hdr, ftr, curr);
 
         if (hdr != ftr) {
-            printf("Header (0x%016X) != footer (0x%016X)\n", hdr, ftr);
+            printf("Header (0x%08X) != footer (0x%08X)\n", hdr, ftr);
             return false;
         }
 

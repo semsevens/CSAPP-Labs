@@ -1172,11 +1172,11 @@ static void printresults(int n, stats_t *stats) {
     int sumweight = 0;
 
     /* Print the individual results for each trace */
-    printf("  %6s%6s %5s%8s%9s  %s\n",
+    printf("  %6s%6s %5s%8s %9s  %s\n",
            "valid", "util", "ops", "secs", "Kops", "trace");
     for (i = 0; i < n; i++) {
         if (stats[i].valid) {
-            printf("%2s%4s %5.0f%%%8.0f%10.6f%6.0f %s\n",
+            printf("%2s%4s %5.0f%%%8.0f%10.6f %6.0f %s\n",
                    stats[i].weight != 0 ? "*" : "",
                    "yes",
                    stats[i].util * 100.0,
@@ -1205,7 +1205,7 @@ static void printresults(int n, stats_t *stats) {
         if (sumweight == 0)
             sumweight = 1;
 
-        printf("%2d     %5.0f%%%8.0f%10.6f%6.0f\n",
+        printf("%2d     %5.0f%%%8.0f%10.6f %6.0f\n",
                sumweight,
                (sumutil / (double)sumweight) * 100.0,
                sumops,
