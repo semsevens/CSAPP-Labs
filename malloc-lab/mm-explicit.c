@@ -36,6 +36,7 @@ static const size_t ptr_size = sizeof(char *); // pointer size (bytes)
  * Minimum block size, (header + footer + 2 * pointer + struct inner padding)
  */
 static const size_t min_block_size = 2 * wsize + 2 * ptr_size + 2 * wsize;
+static const size_t epilogue_size = 2 * dsize;
 
 static const word_t alloc_mask = 0x1;
 static const word_t size_mask = ~(word_t)0x7;
@@ -68,8 +69,6 @@ typedef struct block {
     // word_t footer; // CANNOT uncomment this line
 } block_t;
 
-static const size_t block_with_footer_size = sizeof(block_t) + dsize;
-
 /* Global variables */
 /* Pointer to first block */
 static block_t *heap_listp = NULL;
@@ -83,7 +82,6 @@ static block_t *find_fit(size_t asize);
 static block_t *coalesce(block_t *block);
 
 static size_t max(size_t x, size_t y);
-static size_t min(size_t x, size_t y);
 static size_t round_up(size_t size, size_t n);
 static word_t pack(size_t size, bool alloc);
 
@@ -107,6 +105,11 @@ static block_t *find_prev(block_t *block);
 static void insert_free_block(block_t *bp);
 static void remove_from_free_list(block_t *bp);
 
+static word_t *get_header(block_t *block);
+static word_t *get_footer(block_t *block);
+
+static void print_heap(void);
+
 bool mm_checkheap(int lineno);
 
 /*
@@ -116,20 +119,19 @@ bool mm_checkheap(int lineno);
  */
 int mm_init(void) {
     // Create the initial empty heap
-    block_t *start = (block_t *)(mem_sbrk(2 * block_with_footer_size));
+    block_t *start = (block_t *)(mem_sbrk(min_block_size + epilogue_size));
 
     if (start == (void *)-1) {
         return -1;
     }
 
-    write_header(start, block_with_footer_size, true); // Prologue header
-    write_footer(start, block_with_footer_size, true); // Prologue footer
+    write_header(start, min_block_size, true); // Prologue header
+    write_footer(start, min_block_size, true); // Prologue footer
     block_t *epilogue = find_next(&(start[0]));
     start[0].succ = epilogue; // Prologue successor
 
     write_header(epilogue, 0, true); // Epilogue header
     epilogue->pred = &(start[0]);    // Epilogue predecessor
-    epilogue->succ = NULL;           // Epilogue successor
 
     // Heap starts with prologue footer
     heap_listp = (block_t *)&(start[0]);
@@ -167,7 +169,7 @@ void *malloc(size_t size) {
     }
 
     // Adjust block size to include overhead and to meet alignment requirements
-    asize = min(round_up(size, dsize) + dsize, min_block_size);
+    asize = max(round_up(size + tsize, dsize), min_block_size);
 
     // Search the free list for a fit
     block = find_fit(asize);
@@ -185,7 +187,7 @@ void *malloc(size_t size) {
     place(block, asize);
     bp = header_to_payload(block);
 
-    dbg_printf("Malloc size %zd on address %p.\n", size, bp);
+    dbg_printf("Malloc size %zd on address %p, with adjusted size %zd.\n", size, bp, asize);
     dbg_ensures(mm_checkheap(__LINE__));
     return bp;
 }
@@ -244,7 +246,7 @@ static block_t *extend_heap(size_t size) {
     }
 
     // Initialize free block header/footer
-    block_t *block = payload_to_header(bp);
+    block_t *block = (block_t *)(((char *)bp) - epilogue_size);
     write_header(block, size, false);
     write_footer(block, size, false);
     // Create new epilogue header
@@ -328,8 +330,8 @@ static void place(block_t *block, size_t asize) {
 static block_t *find_fit(size_t asize) {
     block_t *block;
 
-    for (block = free_listp->succ; block->succ != NULL; block = block->succ) {
-        if (!get_alloc(block) && (asize <= get_size(block))) {
+    for (block = free_listp->succ; get_size(block) != 0; block = block->succ) {
+        if (asize <= get_size(block)) {
             return block;
         }
     }
@@ -342,13 +344,6 @@ static block_t *find_fit(size_t asize) {
  */
 static size_t max(size_t x, size_t y) {
     return (x > y) ? x : y;
-}
-
-/*
- * min: returns x if x < y, and y otherwise.
- */
-static size_t min(size_t x, size_t y) {
-    return (x < y) ? x : y;
 }
 
 /*
@@ -421,8 +416,16 @@ static void write_header(block_t *block, size_t size, bool alloc) {
  *               computing the position of the footer.
  */
 static void write_footer(block_t *block, size_t size, bool alloc) {
-    word_t *footerp = (word_t *)((block->payload) + get_payload_size(block));
+    word_t *footerp = get_footer(block);
     *footerp = pack(size, alloc);
+}
+
+static word_t *get_header(block_t *block) {
+    return &(block->header);
+}
+
+static word_t *get_footer(block_t *block) {
+    return (word_t *)((block->payload) + get_payload_size(block));
 }
 
 /*
@@ -494,5 +497,47 @@ static void remove_from_free_list(block_t *bp) {
  * mm_checkheap
  */
 bool mm_checkheap(int lineno) {
-    return (bool)lineno;
+    if (!heap_listp) {
+        printf("NULL heap list pointer!\n");
+        return false;
+    }
+
+    // check header and footer consistency
+    block_t *curr = heap_listp;
+    block_t *next;
+    block_t *hi = mem_heap_hi();
+    while ((next = find_next(curr)) + 1 < hi) {
+        word_t hdr = curr->header;
+        word_t ftr = *find_prev_footer(next);
+
+        if (hdr != ftr) {
+            printf("Header (0x%08X) at %p != footer (0x%08X) at %p, lineno: %d\n", hdr, get_header(curr), ftr, get_footer(curr), lineno);
+            return false;
+        }
+
+        curr = next;
+    }
+
+    block_t *block;
+    for (block = free_listp->succ; get_size(block) != 0; block = block->succ) {
+        if (get_alloc(block)) {
+            printf("allocated block in free list, at %p, lineno: %d\n", block, lineno);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static void print_heap(void) {
+    block_t *curr = heap_listp;
+    block_t *next;
+    block_t *hi = mem_heap_hi();
+    while ((next = find_next(curr)) + 1 < hi) {
+        word_t hdr = curr->header;
+        word_t ftr = *find_prev_footer(next);
+
+        curr = next;
+        li;
+    }
 }
