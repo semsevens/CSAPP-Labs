@@ -105,10 +105,18 @@ static block_t *find_prev(block_t *block);
 static void insert_free_block(block_t *bp);
 static void remove_from_free_list(block_t *bp);
 
+static size_t get_asize(size_t size);
+static void split_block(block_t *bp, size_t asize);
+
 static word_t *get_header(block_t *block);
 static word_t *get_footer(block_t *block);
 
-static void print_heap(void);
+static void dbg_print_heap(bool skip);
+#ifdef DEBUG
+#define print_heap(...) dbg_print_heap(false)
+#else
+#define print_heap(...) dbg_print_heap(true)
+#endif
 
 bool mm_checkheap(int lineno);
 
@@ -143,6 +151,8 @@ int mm_init(void) {
     if (extend_heap(chunksize) == NULL) {
         return -1;
     }
+
+    print_heap();
     return 0;
 }
 
@@ -168,9 +178,7 @@ void *malloc(size_t size) {
         mm_init();
     }
 
-    // Adjust block size to include overhead and to meet alignment requirements
-    asize = max(round_up(size + tsize, dsize), min_block_size);
-
+    asize = get_asize(size);
     // Search the free list for a fit
     block = find_fit(asize);
 
@@ -188,6 +196,7 @@ void *malloc(size_t size) {
     bp = header_to_payload(block);
 
     dbg_printf("Malloc size %zd on address %p, with adjusted size %zd.\n", size, bp, asize);
+    print_heap();
     dbg_ensures(mm_checkheap(__LINE__));
     return bp;
 }
@@ -214,18 +223,47 @@ void free(void *ptr) {
  * realloc
  */
 void *realloc(void *oldptr, size_t size) {
-    oldptr = oldptr;
-    size = size;
-    return NULL;
+    if (size == 0) {
+        free(oldptr);
+        return NULL;
+    }
+
+    if (oldptr == NULL) {
+        return malloc(size);
+    }
+
+    block_t *old_block = payload_to_header(oldptr);
+    size_t oldsize = get_size(old_block);
+
+    size_t asize = get_asize(size);
+
+    if (oldsize >= asize) {
+        if ((oldsize - asize) >= min_block_size) {
+            split_block(old_block, asize);
+        }
+        return oldptr;
+    } else {
+        void *newptr;
+        if ((newptr = malloc(size)) == NULL)
+            return NULL;
+
+        memcpy(newptr, oldptr, get_payload_size(old_block));
+        free(oldptr);
+
+        return newptr;
+    }
 }
 
 /*
  * calloc
  */
 void *calloc(size_t nmemb, size_t size) {
-    nmemb = nmemb;
-    size = size;
-    return NULL;
+    size_t bytes = nmemb * size;
+    void *newptr;
+
+    if ((newptr = malloc(bytes)) != NULL)
+        memset(newptr, 0, bytes);
+    return newptr;
 }
 
 /******** The remaining content below are helper and debug routines ********/
@@ -245,16 +283,20 @@ static block_t *extend_heap(size_t size) {
         return NULL;
     }
 
-    // Initialize free block header/footer
-    block_t *block = (block_t *)(((char *)bp) - epilogue_size);
-    write_header(block, size, false);
-    write_footer(block, size, false);
+    block_t *old_epi = (block_t *)(((char *)bp) - epilogue_size);
+    block_t *old_epi_pred = old_epi->pred;
+    // Initialize free block header/footer at the position of old epilogue
+    write_header(old_epi, size, false);
+    write_footer(old_epi, size, false);
+
     // Create new epilogue header
-    block_t *block_next = find_next(block);
-    write_header(block_next, 0, true);
+    block_t *new_epi = find_next(old_epi);
+    write_header(new_epi, 0, true);
+    new_epi->pred = old_epi_pred;
+    old_epi_pred->succ = new_epi;
 
     // Coalesce in case the previous block was free
-    return coalesce(block);
+    return coalesce(old_epi);
 }
 
 /* Coalesce: Coalesces current block with previous and next blocks if either
@@ -272,13 +314,14 @@ static block_t *coalesce(block_t *block) {
 
     // Case 1
     if (prev_alloc && next_alloc) {
-
     }
     // Case 2
     else if (prev_alloc && !next_alloc) {
         size += get_size(block_next);
         write_header(block, size, false);
         write_footer(block, size, false);
+
+        remove_from_free_list(block_next);
     }
     // Case 3
     else if (!prev_alloc && next_alloc) {
@@ -286,6 +329,8 @@ static block_t *coalesce(block_t *block) {
         write_header(block_prev, size, false);
         write_footer(block_prev, size, false);
         block = block_prev;
+
+        remove_from_free_list(block_prev);
     }
     // Case 4
     else {
@@ -293,9 +338,16 @@ static block_t *coalesce(block_t *block) {
         write_header(block_prev, size, false);
         write_footer(block_prev, size, false);
         block = block_prev;
+
+        remove_from_free_list(block_prev);
+        remove_from_free_list(block_next);
     }
 
     insert_free_block(block);
+
+    dbg_printf("After coalesce\n");
+    print_heap();
+
     return block;
 }
 
@@ -310,13 +362,7 @@ static void place(block_t *block, size_t asize) {
     remove_from_free_list(block);
 
     if ((csize - asize) >= min_block_size) {
-        write_header(block, asize, true);
-        write_footer(block, asize, true);
-
-        block_t *block_next = find_next(block);
-        write_header(block_next, csize - asize, false);
-        write_footer(block_next, csize - asize, false);
-        insert_free_block(block_next);
+        split_block(block, asize);
     } else {
         write_header(block, csize, true);
         write_footer(block, csize, true);
@@ -494,6 +540,24 @@ static void remove_from_free_list(block_t *bp) {
 }
 
 /*
+ * Adjust block size to include overhead and to meet alignment requirements
+ */
+static size_t get_asize(size_t size) {
+    return max(round_up(size + tsize, dsize), min_block_size);
+}
+
+static void split_block(block_t *bp, size_t asize) {
+    size_t csize = get_size(bp);
+    write_header(bp, asize, true);
+    write_footer(bp, asize, true);
+
+    block_t *block_next = find_next(bp);
+    write_header(block_next, csize - asize, false);
+    write_footer(block_next, csize - asize, false);
+    insert_free_block(block_next);
+}
+
+/*
  * mm_checkheap
  */
 bool mm_checkheap(int lineno) {
@@ -521,7 +585,7 @@ bool mm_checkheap(int lineno) {
     block_t *block;
     for (block = free_listp->succ; get_size(block) != 0; block = block->succ) {
         if (get_alloc(block)) {
-            printf("allocated block in free list, at %p, lineno: %d\n", block, lineno);
+            printf("Allocated block in free list, at %p, lineno: %d\n", block, lineno);
             return false;
         }
     }
@@ -529,15 +593,26 @@ bool mm_checkheap(int lineno) {
     return true;
 }
 
-static void print_heap(void) {
+static void dbg_print_heap(bool skip) {
+    if (skip)
+        return;
+
     block_t *curr = heap_listp;
     block_t *next;
-    block_t *hi = mem_heap_hi();
-    while ((next = find_next(curr)) + 1 < hi) {
+    while (get_size(curr) > 0) {
+        next = find_next(curr);
+
         word_t hdr = curr->header;
         word_t ftr = *find_prev_footer(next);
+        if (get_alloc(curr)) {
+            printf("@%p->[h:%zd/%s|psize:%zd|f:%zd/%s] ", curr, extract_size(hdr), extract_alloc(hdr) ? "a" : "f",
+                   get_payload_size(curr), extract_size(ftr), extract_alloc(ftr) ? "a" : "f");
+        } else {
+            printf("@%p->[h:%zd/%s|pred:%p,succ:%p|f:%zd/%s] ", curr, extract_size(hdr), extract_alloc(hdr) ? "a" : "f",
+                   curr->pred, curr->succ, extract_size(ftr), extract_alloc(ftr) ? "a" : "f");
+        }
 
         curr = next;
-        li;
     }
+    printf("\n");
 }
