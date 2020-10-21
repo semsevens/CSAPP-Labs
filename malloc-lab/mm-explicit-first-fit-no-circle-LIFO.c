@@ -2,8 +2,8 @@
  * mm-explicit.c
  * 
  * explicit free list
- * - no circle list
  * - first fit
+ * - no circle list
  * - LIFO (free to the header)
  */
 #include <assert.h>
@@ -33,9 +33,12 @@ static const size_t dsize = 2 * wsize;         // double word size (bytes)
 static const size_t tsize = 3 * wsize;         // triple word size (bytes)
 static const size_t ptr_size = sizeof(char *); // pointer size (bytes)
 /*
- * Minimum block size, (header + footer + 2 * pointer + struct inner padding)
+ * Minimum block size, (header + footer + 2 * pointer + struct inner alignment padding)
  */
 static const size_t min_block_size = 2 * wsize + 2 * ptr_size + 2 * wsize;
+/*
+ * Epilogue block size, header + predecessor
+ */
 static const size_t epilogue_size = 2 * dsize;
 
 static const word_t alloc_mask = 0x1;
@@ -47,8 +50,8 @@ typedef struct block {
     /* dummy word to make payload aligned at 8-multiple */
     word_t _dummy;
     /*
-     * We don't know how big the payload will be.  Declaring it as an
-     * array of size 0 allows computing its starting address using
+     * We don't know how big the payload will be.
+     * Declaring it as an array of size 0 allows computing its starting address using
      * pointer notation.
      */
     char payload[0];
@@ -58,7 +61,8 @@ typedef struct block {
      * succ: successor, point to the next free block in explicit free list
      * 
      * !!NOTICE!!: due to struct alignment requirement, pred and succ will align 
-     * at 8 multiple address, which cause a 4-byte hole after header
+     * at 8 multiple address, which cause a 4-byte hole after header, so we declare a
+     * `_dummy` field
      */
     struct block *pred;
     struct block *succ;
@@ -118,12 +122,16 @@ static void dbg_print_heap(bool skip);
 #define print_heap(...) dbg_print_heap(true)
 #endif
 
-bool mm_checkheap(int lineno);
-
 /*
  * mm_init
  * 
  * initialize the heap, it is run once when heap_start == NULL.
+ * 
+ * prior to any extend_heap operation, this is the heap:
+ * start           start+4          start+8                start+16             start+24         start+28          start+32          start+36         start+40               start+48
+ *  | PROLOGUE_HEADER | PROLOGUE_DUMMY | PROLOGUE_PREDECESSOR | PROLOGUE_SUCCESSOR | PROLOGUE_DUMMY | PROLOGUE_FOOTER | EPILOGUE_HEADER | EPILOGUE_DUMMY | EPILOGUE_PREDECESSOR |
+ * 
+ * 
  */
 int mm_init(void) {
     // Create the initial empty heap
@@ -136,15 +144,15 @@ int mm_init(void) {
     write_header(start, min_block_size, true); // Prologue header
     write_footer(start, min_block_size, true); // Prologue footer
     block_t *epilogue = find_next(&(start[0]));
-    start[0].succ = epilogue; // Prologue successor
+    start[0].succ = epilogue; // Prologue successor, initially points to epilogue
 
     write_header(epilogue, 0, true); // Epilogue header
-    epilogue->pred = &(start[0]);    // Epilogue predecessor
+    epilogue->pred = &(start[0]);    // Epilogue predecessor, initially points to prologue
 
-    // Heap starts with prologue footer
+    // Heap starts with prologue header
     heap_listp = (block_t *)&(start[0]);
 
-    // Explicit free list point to the very start of virtual address space
+    // Explicit free list point to the prologue
     free_listp = (block_t *)&(start[0]);
 
     // Extend the empty heap with a free block of chunksize bytes
@@ -158,6 +166,8 @@ int mm_init(void) {
 
 /*
  * malloc
+ * 
+ * with first fit
  */
 void *malloc(size_t size) {
     dbg_requires(mm_checkheap(__LINE__));
@@ -237,12 +247,16 @@ void *realloc(void *oldptr, size_t size) {
 
     size_t asize = get_asize(size);
 
+    // enough space to realloc, just shrunk old space, and free any unused space
     if (oldsize >= asize) {
+        // unused space is able to meet another malloc request, so put it into free list
         if ((oldsize - asize) >= min_block_size) {
             split_block(old_block, asize);
         }
         return oldptr;
-    } else {
+    }
+    // old space is too small, need to alloc another space
+    else {
         void *newptr;
         if ((newptr = malloc(size)) == NULL)
             return NULL;
@@ -292,6 +306,8 @@ static block_t *extend_heap(size_t size) {
     // Create new epilogue header
     block_t *new_epi = find_next(old_epi);
     write_header(new_epi, 0, true);
+
+    // maintain the explicit free list
     new_epi->pred = old_epi_pred;
     old_epi_pred->succ = new_epi;
 
@@ -303,6 +319,9 @@ static block_t *extend_heap(size_t size) {
  *           or both are unallocated; otherwise the block is not modified.
  *           Returns pointer to the coalesced block. After coalescing, the
  *           immediate contiguous previous and next blocks must be allocated.
+ * 
+ * need to maintain the explicit free list, remove the coalesced free block if necessary
+ * and insert the newly free block
  */
 static block_t *coalesce(block_t *block) {
     block_t *block_next = find_next(block);
@@ -355,6 +374,9 @@ static block_t *coalesce(block_t *block) {
  * place: Places block with size of asize at the start of bp. If the remaining
  *        size is at least the minimum block size, then split the block to the
  *        the allocated block and the remaining block as free.
+ * 
+ * need to maintain explicit free list, remove this allocated block,
+ * and insert the remaining free block if necessary
  */
 static void place(block_t *block, size_t asize) {
     size_t csize = get_size(block);
@@ -377,6 +399,7 @@ static block_t *find_fit(size_t asize) {
     block_t *block;
 
     for (block = free_listp->succ; get_size(block) != 0; block = block->succ) {
+        // only need to check size, since all blocks here are free
         if (asize <= get_size(block)) {
             return block;
         }
@@ -426,6 +449,8 @@ static size_t get_size(block_t *block) {
 /*
  * get_payload_size: returns the payload size of a given block, equal to
  *                   the entire block size minus the header and footer sizes.
+ * 
+ * because of the dummy word to meet alignment requirement, header size is 2 * wsize
  */
 static size_t get_payload_size(block_t *block) {
     size_t asize = get_size(block);
@@ -462,14 +487,20 @@ static void write_header(block_t *block, size_t size, bool alloc) {
  *               computing the position of the footer.
  */
 static void write_footer(block_t *block, size_t size, bool alloc) {
-    word_t *footerp = get_footer(block);
-    *footerp = pack(size, alloc);
+    word_t *footer_ptr = get_footer(block);
+    *footer_ptr = pack(size, alloc);
 }
 
+/*
+ * get_header: return the block header address
+ */
 static word_t *get_header(block_t *block) {
     return &(block->header);
 }
 
+/*
+ * get_footer: return the block footer address
+ */
 static word_t *get_footer(block_t *block) {
     return (word_t *)((block->payload) + get_payload_size(block));
 }
@@ -500,8 +531,8 @@ static word_t *find_prev_footer(block_t *block) {
  *            based on its size.
  */
 static block_t *find_prev(block_t *block) {
-    word_t *footerp = find_prev_footer(block);
-    size_t size = extract_size(*footerp);
+    word_t *footer_ptr = find_prev_footer(block);
+    size_t size = extract_size(*footer_ptr);
     return (block_t *)((char *)block - size);
 }
 
@@ -546,6 +577,10 @@ static size_t get_asize(size_t size) {
     return max(round_up(size + tsize, dsize), min_block_size);
 }
 
+/**
+ * Split block by `asize`, the first splitted block is allocated, the second one is free
+ * need to maintain the explicit free list: insert the second one to free list
+ */
 static void split_block(block_t *bp, size_t asize) {
     size_t csize = get_size(bp);
     write_header(bp, asize, true);
@@ -582,6 +617,7 @@ bool mm_checkheap(int lineno) {
         curr = next;
     }
 
+    // check all blocks in explicit free list are indeed FREE
     block_t *block;
     for (block = free_listp->succ; get_size(block) != 0; block = block->succ) {
         if (get_alloc(block)) {
@@ -593,6 +629,13 @@ bool mm_checkheap(int lineno) {
     return true;
 }
 
+/*
+ * print heap in continuous style, block by block
+ * commonly show block position, header, footer
+ * 
+ * - for *allocated* block, show payload size
+ * - for *free* block, show predecessor pointer, successor pointer
+ */
 static void dbg_print_heap(bool skip) {
     if (skip)
         return;
