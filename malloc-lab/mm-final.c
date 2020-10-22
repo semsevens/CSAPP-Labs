@@ -1,14 +1,25 @@
 /*
- * mm-segregated.c
+ * mm-final.c
  * 
- * implement segregated fits on CSAPP 3e textbook p900
+ * based on mm-segregated.c, apply as many optimization as possible
  * 
  * segregated free list
  * - min_block_size: 32
  * - 16 size class, (0,32],(32, 64],(64, 128],...,(2^(i+4), 2^(i+5)],...,(2^19, +inf)
- * - circle explicit free list for each size class
+ * - circle explicit free list
  * - first fit
  * - LIFO (free to the header of size class)
+ * 
+ * optimizations:
+ * 
+ * # binary search for highest 1 bit in `get_highest_1bit_idx`
+ *      mm-segregated version is implemented in bit by bit loop style, which takes O(n) time
+ *      so optimize it to use binary search style, which takes O(log(n)) time
+ *      
+ *      this optimization can increase throughput
+ * 
+ * # optimization 2
+ *   balabala
  */
 #include <assert.h>
 #include <stddef.h>
@@ -156,6 +167,26 @@ static void dbg_print_heap(bool skip);
  * prologue block and epilogue header is mainly for coalesce simplicity
  */
 int mm_init(void) {
+    // Check `get_highest_1bit_idx` helper function correctness
+    dbg_assert(get_highest_1bit_idx(1 << 0) == 1);
+    dbg_assert(get_highest_1bit_idx(1 << 5) == 6);
+    dbg_assert(get_highest_1bit_idx(1 << 9) == 10);
+    dbg_assert(get_highest_1bit_idx((1 << 2) - 1) == 2);
+    dbg_assert(get_highest_1bit_idx((1 << 10) - 1) == 10);
+
+    // Check `get_seglist_idx` helper function correctness
+    dbg_assert(get_seglist_idx(1) == 0);
+    dbg_assert(get_seglist_idx(16) == 0);
+    dbg_assert(get_seglist_idx(32) == 0);
+    dbg_assert(get_seglist_idx(33) == 1);
+    dbg_assert(get_seglist_idx(42) == 1);
+    dbg_assert(get_seglist_idx(64) == 1);
+    dbg_assert(get_seglist_idx(1 << 10) == 5);
+    dbg_assert(get_seglist_idx((1 << 12) - 1) == 7);
+    dbg_assert(get_seglist_idx(1 << 19) == 14);
+    dbg_assert(get_seglist_idx((1 << 19) + 1) == 15);
+    dbg_assert(get_seglist_idx(1 << 22) == 15);
+
     // Create the initial empty heap
     block_t *start = (block_t *)(mem_sbrk(size_class_cnt * block_size + prologue_size + epilogue_size));
 
@@ -683,12 +714,20 @@ static uint32_t get_seglist_idx(size_t size) {
  */
 static uint32_t get_highest_1bit_idx(uint32_t num) {
     dbg_assert(num > 0);
+    uint8_t hi = 31, lo = 0, width = 16;
     uint32_t idx = 0;
-    do {
-        num >>= 1;
-        idx++;
-    } while (num > 0);
-    return idx;
+    while (width) {
+        if ((num >> width)) {
+            lo += width;
+            idx += width;
+            num >>= width;
+        } else {
+            hi -= width;
+        }
+        width >>= 1;
+    }
+
+    return idx + 1;
 }
 
 /*
