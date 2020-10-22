@@ -1,1 +1,1 @@
-mm-explicit.c
+mm-segregated.c
