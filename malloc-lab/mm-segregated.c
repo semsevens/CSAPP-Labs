@@ -6,7 +6,7 @@
  * segregated free list
  * - min_block_size: 32
  * - 16 size class, (0,32],(32, 64],(64, 128],...,(2^(i+4), 2^(i+5)],...,(2^20, +inf)
- * - circle explicit free list
+ * - circle explicit free list for each size class
  * - first fit
  * - LIFO (free to the header of size class)
  */
@@ -43,7 +43,7 @@ static const size_t size_class_cnt = 16;       // how many size class in segrega
  */
 static const size_t min_block_size = 2 * wsize + 2 * ptr_size + 2 * wsize;
 /**
- * Prologue block size
+ * Prologue block size, also is `sizeof(block_t)`
  */
 static const size_t prologue_size = min_block_size;
 /*
@@ -58,13 +58,16 @@ typedef struct block {
     /* Header contains size + allocation flag */
     word_t header;
 
+    /* dummy word to make payload aligned at 8-multiple */
     word_t _dummy1;
+
     /*
      * We don't know how big the payload will be.
      * Declaring it as an array of size 0 allows computing its starting address using
      * pointer notation.
      */
     char payload[0];
+
     /*
      * explicit free list pointer
      * pred: predecessor, point to the previous free block in explicit free list
@@ -73,7 +76,9 @@ typedef struct block {
     struct block *pred;
     struct block *succ;
 
+    /* dummy word to make footer aligned at the end word of block */
     word_t _dummy2;
+
     /*
      * We can't declare the footer as part of the struct, since its starting
      * position is unknown
@@ -89,7 +94,7 @@ static const size_t block_size = sizeof(block_t);
 /* Global variables */
 /* Pointer to first block */
 static block_t *heap_listp = NULL;
-/* Pointer to segregated free list */
+/* Pointer to segregated free list, of `size_class_cnt` length */
 static block_t *seglist = NULL;
 
 /* Function prototypes for internal helper routines */
@@ -140,28 +145,49 @@ static void dbg_print_heap(bool skip);
 
 /*
  * mm_init
+ * initialize the heap, it is run once when heap_start == NULL.
+ * 
+ * prior to any extend_heap operation, this is the heap:
+ * start               start+32              start+32*2  start+32*15               start+32*16      start+32*16+32    start+32*16+32+8
+ *   | size class (0, 32] | size class (32, 64] | ..., .... | size class (2^20, +inf] | prologue block | epilogue header |
+ * 
+ * each size class is of type `block_t`, but only `pred`, `succ` matters, because of circle list for each explicit list
+ * 
+ * prologue block and epilogue header is mainly for coalesce simplicity
  */
 int mm_init(void) {
+    // Create the initial empty heap
     block_t *start = (block_t *)(mem_sbrk(size_class_cnt * block_size + prologue_size + epilogue_size));
 
     if (start == (void *)-1)
         return -1;
 
+    /**
+     * Initialize the explicit free list of each size class bucket
+     * pred and succ point to the belonging size class bucket initially
+     */
     for (size_t i = 0; i < size_class_cnt; i++) {
         write_header(&(start[i]), block_size, true);
         write_footer(&(start[i]), block_size, true);
         start[i].pred = &(start[i]);
         start[i].succ = &(start[i]);
     }
+    /**
+     * set seglist to the very beginning of heap, 
+     * which makes seglist an array of `block_t[size_class_cnt]`
+     */
     seglist = start;
 
+    // prologue starts immediately after seglist
     block_t *prologue = &(start[size_class_cnt]);
     write_header(prologue, prologue_size, true);
     write_footer(prologue, prologue_size, true);
 
+    // epilogue starts immediately after prologue
     block_t *epilogue = (block_t *)((char *)prologue + prologue_size);
     write_header(epilogue, 0, true);
 
+    // heap starts with prologue
     heap_listp = prologue;
 
     if (extend_heap(chunksize) == NULL)
@@ -172,6 +198,16 @@ int mm_init(void) {
 
 /*
  * malloc
+ * 
+ * quote from textbook:
+ *      To allocate a block, we determine the size class of the request 
+ *      and do a ﬁrst ﬁt search of the appropriate free list for a block that ﬁts. 
+ *      If we ﬁnd one, then we (optionally) split it and insert the fragment in the appropriate free list. 
+ *      If we cannot ﬁnd a block that ﬁts, then we search the free list for the next larger size class.
+ *      We repeat until we ﬁnd a block that ﬁts. If none of the free lists yields a block that ﬁts, 
+ *      then we request additional heap memory from the operating system, 
+ *      allocate the block out of this new heap memory, 
+ *      and place the remainder in the appropriate size class.
  */
 void *malloc(size_t size) {
     dbg_requires(mm_checkheap(__LINE__));
@@ -217,6 +253,9 @@ void *malloc(size_t size) {
 
 /*
  * free
+ * 
+ * quote from textbook:
+ *      To free a block, we coalesce and place the result on the appropriate free list.
  */
 void free(void *ptr) {
     if (ptr == NULL) {
@@ -395,11 +434,17 @@ static void place(block_t *block, size_t asize) {
  *           first-fit policy. Returns NULL if none is found.
  */
 static block_t *find_fit(size_t asize) {
+    // determine the size class of the request `asize`
     uint32_t idx = get_seglist_idx(asize);
 
     block_t *block;
+    // repeat until we find a block that fits
     while (idx < size_class_cnt) {
-        for (block = seglist[idx].succ; block != &(seglist[idx]); block = block->succ) {
+        // check each free block in this size class
+        for (block = seglist[idx].succ;
+             // not until loop back to the header of this size class
+             block != &(seglist[idx]);
+             block = block->succ) {
             // only need to check size, since all blocks here are free
             if (asize <= get_size(block)) {
                 return block;
@@ -408,6 +453,7 @@ static block_t *find_fit(size_t asize) {
         idx++;
     }
 
+    // or none of the free lists yields a block that fits
     return NULL;
 }
 
@@ -559,7 +605,14 @@ static void *header_to_payload(block_t *block) {
  * Insert new alloced block to the corresponding free list, LIFO style
  */
 static void insert_free_block(block_t *bp) {
+    // determine the size class of the request
     uint32_t idx = get_seglist_idx(get_size(bp));
+    /**
+     * pred point to the size class bucket
+     * 
+     * it is LIFO style: 
+     *  put the newly freed block to the head of the explicit free list
+     */
     bp->pred = &(seglist[idx]);
     bp->succ = seglist[idx].succ;
     bp->pred->succ = bp;
@@ -582,7 +635,10 @@ static size_t get_asize(size_t size) {
 }
 
 /**
- * Split block by `asize`, the first splitted block is allocated, the second one is free
+ * Split block by `asize`
+ * 
+ * the first splitted block is allocated, 
+ * the second one is free,
  * need to maintain the explicit free list: insert the second one to free list
  */
 static void split_block(block_t *bp, size_t asize) {
@@ -596,24 +652,35 @@ static void split_block(block_t *bp, size_t asize) {
     insert_free_block(block_next);
 }
 
+/**
+ * calculate the corresponding index of a size class that `size` can fit in its size range
+ */
 static uint32_t get_seglist_idx(size_t size) {
     uint32_t highest_1bit_idx = get_highest_1bit_idx(size);
 
+    // special case for each size class's upper boundary
     if (size == (size_t)(1 << (highest_1bit_idx - 1)))
         highest_1bit_idx--;
 
     uint32_t idx;
+    // first size class
     if (highest_1bit_idx <= 5)
         idx = 0;
+    // last size class
     else if (highest_1bit_idx >= 20)
         idx = 15;
+    // other normal size classes
     else
         idx = highest_1bit_idx - 5;
 
+    // make sure: 0 <= idx < 16
     dbg_ensures(idx < 16);
     return idx;
 }
 
+/**
+ * calculate the index of highest `1` in the bit pattern of `num`
+ */
 static uint32_t get_highest_1bit_idx(uint32_t num) {
     dbg_assert(num > 0);
     uint32_t idx = 0;
@@ -648,15 +715,6 @@ bool mm_checkheap(int lineno) {
 
         curr = next;
     }
-
-    // check all blocks in explicit free list are indeed FREE
-    // block_t *block;
-    // for (block = free_listp->succ; get_size(block) != 0; block = block->succ) {
-    //     if (get_alloc(block)) {
-    //         printf("Allocated block in free list, at %p, lineno: %d\n", block, lineno);
-    //         return false;
-    //     }
-    // }
 
     return true;
 }
