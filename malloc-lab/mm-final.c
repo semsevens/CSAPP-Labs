@@ -40,13 +40,16 @@
  *      this optimization can increase space utilization
  * 
  * # replace frequently used inline functions with macros
- *      replace two functions:
- *          - get_block_ptr_by_offset
- *          - get_offset_by_block_ptr
+ *      controlled by compile flag `USE_MACRO`
  * 
  *      this optimization can increase throughput
  * 
- * # extend heap by ? size
+ * # dynamically adjust `extend_heap` chunksize
+ *      dynamically increase or decrease `chunksize` by factor of 2
+ *      - for large extend request, increase `chunksize` by factor of 2
+ *      - for small extend request, decrease `chunksize` by factor of 2
+ * 
+ *      this optimization can increase space utilization
  */
 #include <assert.h>
 #include <stddef.h>
@@ -69,10 +72,11 @@
 
 /* Basic constants */
 typedef uint32_t word_t;
-static const size_t chunksize = (1 << 12);  // requires (chunksize % 8 == 0)
-static const size_t wsize = sizeof(word_t); // word and header size (bytes)
-static const size_t dsize = 2 * wsize;      // double word size (bytes)
-static const size_t size_class_cnt = 16;    // how many size class in segregated list
+static const size_t max_chunksize = (1 << 8); // chunksize cap for dynamic extend heap
+static const size_t min_chunksize = (1 << 4); // minimal chunksize for dynamic extend heap
+static const size_t wsize = sizeof(word_t);   // word and header size (bytes)
+static const size_t dsize = 2 * wsize;        // double word size (bytes)
+static const size_t size_class_cnt = 16;      // how many size class in segregated list
 
 static const word_t alloc_mask = 0x1;         // current block alloc bit at lowest bit
 static const word_t prev_alloc_mask = 0x2;    // previous block alloc bit at second lowest bit
@@ -128,6 +132,15 @@ static block_t *heap_listp = NULL;
 static block_t *seglist = NULL;
 /* Pointer to the beginning of heap */
 static char *heap_start = NULL;
+/**
+ * chunksize
+ * 
+ * initially set to a small number, but dynamically increase by double size,
+ * but no larger than max_chunksize
+ * 
+ * requires (chunksize % 8 == 0)
+ */
+static size_t chunksize = min_chunksize;
 
 /* Function prototypes for internal helper routines */
 static block_t *extend_heap(size_t size);
@@ -135,55 +148,89 @@ static void place(block_t *block, size_t asize);
 static block_t *find_fit(size_t asize);
 static block_t *coalesce(block_t *block);
 
+#ifdef USE_MACRO
+/**
+ * these functions are most frequently used, so replace them with macros
+ */
+#define max(x, y) ((x > y) ? x : y)
+#define min(x, y) ((x < y) ? x : y)
+#define round_up(size, n) (n * ((size + (n - 1)) / n))
+#define get_asize(size) (round_up(size + dsize, dsize))
+#define pack(size, alloc, prev_alloc) (size | alloc | (prev_alloc ? 2 : 0))
+
+#define extract_size(word) ((size_t)(word & size_mask))
+#define get_size(block) (extract_size(block->header))
+#define get_payload_size(block) (get_size(block) - dsize)
+
+#define extract_alloc(word) ((bool)(word & alloc_mask))
+#define get_alloc(block) (extract_alloc(block->header))
+
+#define extract_prev_alloc(word) ((bool)(word & prev_alloc_mask))
+#define get_prev_alloc(block) (extract_prev_alloc(block->header))
+
+#define write_header(block, size, alloc, prev_alloc) (block->header = pack(size, alloc, prev_alloc))
+#define write_footer(block, size, alloc, prev_alloc) (*(get_footer(block)) = pack(size, alloc, prev_alloc))
+#define get_header(block) (&(block->header))
+#define get_footer(block) ((word_t *)((block->payload) + get_payload_size(block)))
+
+#define find_next(block) ((block_t *)(((char *)block) + get_size(block)))
+#define find_prev_footer(block) ((&(block->header)) - 1)
+#define find_prev(block) ((block_t *)((char *)block - extract_size(*(find_prev_footer(block)))))
+
+#define payload_to_header(pp) ((block_t *)(((char *)pp) - offsetof(block_t, payload)))
+#define header_to_payload(block) ((void *)(block->payload))
+
+#define get_block_ptr_by_offset(offset) ((block_t *)(heap_start + offset))
+#define get_offset_by_block_ptr(bp) ((word_t)(((char *)bp) - heap_start))
+
+#define mark_prev_alloc_as_free(block) (block->header &= (~0x2))
+#define mark_prev_alloc_as_alloced(block) (block->header |= 0x02)
+#define mark_as_free(block) (block->header = (*(get_footer(block))) = (block->header & (~alloc_mask)))
+#else
+
 static size_t max(size_t x, size_t y);
+static size_t min(size_t x, size_t y);
 static size_t round_up(size_t size, size_t n);
+static size_t get_asize(size_t size);
 static word_t pack(size_t size, bool alloc, bool prev_alloc);
 
-static size_t extract_size(word_t header);
+static size_t extract_size(word_t word);
 static size_t get_size(block_t *block);
 static size_t get_payload_size(block_t *block);
 
-static bool extract_alloc(word_t header);
+static bool extract_alloc(word_t word);
 static bool get_alloc(block_t *block);
 
-static bool extract_prev_alloc(word_t header);
+static bool extract_prev_alloc(word_t word);
 static bool get_prev_alloc(block_t *block);
 
 static void write_header(block_t *block, size_t size, bool alloc, bool prev_alloc);
 static void write_footer(block_t *block, size_t size, bool alloc, bool prev_alloc);
-
-static block_t *payload_to_header(void *pp);
-static void *header_to_payload(block_t *block);
+static word_t *get_header(block_t *block);
+static word_t *get_footer(block_t *block);
 
 static block_t *find_next(block_t *block);
 static word_t *find_prev_footer(block_t *block);
 static block_t *find_prev(block_t *block);
 
+static block_t *payload_to_header(void *pp);
+static void *header_to_payload(block_t *block);
+
+static block_t *get_block_ptr_by_offset(word_t offset);
+static word_t get_offset_by_block_ptr(block_t *bp);
+
+static void mark_prev_alloc_as_free(block_t *block);
+static void mark_prev_alloc_as_alloced(block_t *block);
+static void mark_as_free(block_t *block);
+#endif
+
 static void insert_free_block(block_t *bp);
 static void remove_from_free_list(block_t *bp);
 
-static size_t get_asize(size_t size);
 static void split_block(block_t *bp, size_t asize);
-
-static word_t *get_header(block_t *block);
-static word_t *get_footer(block_t *block);
 
 static uint32_t get_seglist_idx(size_t size);
 static uint32_t get_highest_1bit_idx(uint32_t num);
-
-/**
- * offset <=> pointer transform helper functions
- * 
- * these two functions are most frequently used, so replace them with macros
- */
-// static block_t *get_block_ptr_by_offset(word_t offset);
-#define get_block_ptr_by_offset(offset) ((block_t *)(heap_start + offset))
-// static word_t get_offset_by_block_ptr(block_t *bp);
-#define get_offset_by_block_ptr(bp) ((word_t)(((char *)bp) - heap_start))
-
-static void mark_as_free(block_t *block);
-static void mark_prev_alloc_as_free(block_t *block);
-static void mark_prev_alloc_as_alloced(block_t *block);
 
 static void dbg_print_heap(bool skip);
 #ifdef DEBUG
@@ -308,7 +355,17 @@ void *malloc(size_t size) {
 
     // If no fit is found, request more memory, and then and place the block
     if (block == NULL) {
-        extendsize = max(asize, chunksize);
+        if (asize > chunksize) {
+            extendsize = asize;
+            // request larger chunk, so dynamically increase chunksize by factor of 2
+            chunksize = min(max_chunksize, chunksize << 1);
+        } else {
+            extendsize = chunksize;
+            if (asize < (chunksize >> 1))
+                // request smaller chunk, so dynamically decrease chunksize by factor of 2
+                chunksize = max(min_chunksize, chunksize >> 1);
+        }
+
         block = extend_heap(extendsize);
         // extend_heap returns an error
         if (block == NULL) {
@@ -555,28 +612,102 @@ static block_t *find_fit(size_t asize) {
 }
 
 /*
- * max: returns x if x > y, and y otherwise.
+ * Insert new alloced block to the corresponding free list, LIFO style
  */
-static size_t max(size_t x, size_t y) {
-    return (x > y) ? x : y;
+static void insert_free_block(block_t *bp) {
+    // determine the size class of the request
+    uint32_t idx = get_seglist_idx(get_size(bp));
+    /**
+     * pred point to the size class bucket
+     * 
+     * it is LIFO style: 
+     *  put the newly freed block to the head of the explicit free list
+     */
+    bp->pred_offset = get_offset_by_block_ptr(&(seglist[idx]));
+    bp->succ_offset = seglist[idx].succ_offset;
+    (get_block_ptr_by_offset(bp->pred_offset))->succ_offset = get_offset_by_block_ptr(bp);
+    (get_block_ptr_by_offset(bp->succ_offset))->pred_offset = get_offset_by_block_ptr(bp);
 }
 
 /*
- * round_up: Rounds size up to next multiple of n
+ * Remove this block from free list
  */
-static size_t round_up(size_t size, size_t n) {
-    return (n * ((size + (n - 1)) / n));
+static void remove_from_free_list(block_t *bp) {
+    (get_block_ptr_by_offset(bp->pred_offset))->succ_offset = bp->succ_offset;
+    (get_block_ptr_by_offset(bp->succ_offset))->pred_offset = bp->pred_offset;
 }
 
-/*
- * pack: returns a header reflecting a specified size, its alloc status, its previous block all status.
- *       If the block is allocated, the lowest bit is set to 1, and 0 otherwise.
- *       If the previous block is allocated, the second lowest bit is set to 1, and 0 otherwise.
+/**
+ * Split block by `asize`
+ * 
+ * the first splitted block is allocated, 
+ * the second one is free,
+ * need to maintain the explicit free list: insert the second one to free list
+ * 
+ * also need to maintain the `prev_alloc`
  */
-static word_t pack(size_t size, bool alloc, bool prev_alloc) {
-    return size | alloc | (prev_alloc ? 2 : 0);
+static void split_block(block_t *bp, size_t asize) {
+    size_t csize = get_size(bp);
+    // maintain `prev_alloc` unchanged
+    write_header(bp, asize, true, get_prev_alloc(bp));
+
+    block_t *block_next = find_next(bp);
+    // the `prev_alloc` is certainly true
+    write_header(block_next, (csize - asize), false, true);
+    write_footer(block_next, (csize - asize), false, true);
+    insert_free_block(block_next);
+
+    dbg_printf("Split block, first at %p, second at %p\n", bp, block_next);
 }
 
+/**
+ * calculate the corresponding index of a size class that `size` can fit in its size range
+ */
+static uint32_t get_seglist_idx(size_t size) {
+    uint32_t highest_1bit_idx = get_highest_1bit_idx(size);
+
+    // special case for each size class's upper boundary
+    if (size == (size_t)(1 << (highest_1bit_idx - 1)))
+        highest_1bit_idx--;
+
+    uint32_t idx;
+    // first size class
+    if (highest_1bit_idx <= 4)
+        idx = 0;
+    // last size class
+    else if (highest_1bit_idx >= 19)
+        idx = 15;
+    // other normal size classes
+    else
+        idx = highest_1bit_idx - 4;
+
+    // make sure: 0 <= idx < 16
+    dbg_ensures(idx < 16);
+    return idx;
+}
+
+/**
+ * calculate the index of highest `1` in the bit pattern of `num`
+ */
+static uint32_t get_highest_1bit_idx(uint32_t num) {
+    dbg_assert(num > 0);
+    uint8_t hi = 31, lo = 0, width = 16;
+    uint32_t idx = 0;
+    while (width) {
+        if ((num >> width)) {
+            lo += width;
+            idx += width;
+            num >>= width;
+        } else {
+            hi -= width;
+        }
+        width >>= 1;
+    }
+
+    return idx + 1;
+}
+
+#ifndef USE_MACRO
 /*
  * extract_size: returns the size of a given header value based on the header
  *               specification above.
@@ -653,16 +784,6 @@ static void write_footer(block_t *block, size_t size, bool alloc, bool prev_allo
 }
 
 /**
- * mark the allocation status of this block as free
- * both header and footer
- */
-static void mark_as_free(block_t *block) {
-    block->header &= (~alloc_mask);
-    word_t *footer_ptr = get_footer(block);
-    *footer_ptr = block->header;
-}
-
-/**
  * mark the previous block allocation status of this block as free
  * 
  * set the second lowest bit of header as 0
@@ -678,6 +799,16 @@ static void mark_prev_alloc_as_free(block_t *block) {
  */
 static void mark_prev_alloc_as_alloced(block_t *block) {
     block->header |= 0x02;
+}
+
+/**
+ * mark the allocation status of this block as free
+ * both header and footer
+ */
+static void mark_as_free(block_t *block) {
+    block->header &= (~alloc_mask);
+    word_t *footer_ptr = get_footer(block);
+    *footer_ptr = block->header;
 }
 
 /*
@@ -699,10 +830,7 @@ static word_t *get_footer(block_t *block) {
  *            size of the block.
  */
 static block_t *find_next(block_t *block) {
-    dbg_requires(block != NULL);
-    block_t *block_next = (block_t *)(((char *)block) + get_size(block));
-    dbg_ensures(block_next != NULL);
-    return block_next;
+    return (block_t *)(((char *)block) + get_size(block));
 }
 
 /*
@@ -741,114 +869,56 @@ static void *header_to_payload(block_t *block) {
 }
 
 /*
- * Insert new alloced block to the corresponding free list, LIFO style
- */
-static void insert_free_block(block_t *bp) {
-    // determine the size class of the request
-    uint32_t idx = get_seglist_idx(get_size(bp));
-    /**
-     * pred point to the size class bucket
-     * 
-     * it is LIFO style: 
-     *  put the newly freed block to the head of the explicit free list
-     */
-    bp->pred_offset = get_offset_by_block_ptr(&(seglist[idx]));
-    bp->succ_offset = seglist[idx].succ_offset;
-    (get_block_ptr_by_offset(bp->pred_offset))->succ_offset = get_offset_by_block_ptr(bp);
-    (get_block_ptr_by_offset(bp->succ_offset))->pred_offset = get_offset_by_block_ptr(bp);
-}
-
-/*
- * Remove this block from free list
- */
-static void remove_from_free_list(block_t *bp) {
-    (get_block_ptr_by_offset(bp->pred_offset))->succ_offset = bp->succ_offset;
-    (get_block_ptr_by_offset(bp->succ_offset))->pred_offset = bp->pred_offset;
-}
-
-/*
  * Adjust block size to include overhead and to meet alignment requirements
  */
 static size_t get_asize(size_t size) {
     return round_up(size + dsize, dsize);
 }
 
-/**
- * Split block by `asize`
- * 
- * the first splitted block is allocated, 
- * the second one is free,
- * need to maintain the explicit free list: insert the second one to free list
- * 
- * also need to maintain the `prev_alloc`
+/*
+ * max: returns x if x > y, and y otherwise.
  */
-static void split_block(block_t *bp, size_t asize) {
-    size_t csize = get_size(bp);
-    // maintain `prev_alloc` unchanged
-    write_header(bp, asize, true, get_prev_alloc(bp));
+static size_t max(size_t x, size_t y) {
+    return (x > y) ? x : y;
+}
 
-    block_t *block_next = find_next(bp);
-    // the `prev_alloc` is certainly true
-    write_header(block_next, csize - asize, false, true);
-    write_footer(block_next, csize - asize, false, true);
-    insert_free_block(block_next);
+/*
+ * min: returns x if x < y, and y otherwise.
+ */
+static size_t min(size_t x, size_t y) {
+    return (x < y) ? x : y;
+}
 
-    dbg_printf("Split block, first at %p, second at %p\n", bp, block_next);
+/*
+ * round_up: Rounds size up to next multiple of n
+ */
+static size_t round_up(size_t size, size_t n) {
+    return (n * ((size + (n - 1)) / n));
+}
+
+/*
+ * pack: returns a header reflecting a specified size, its alloc status, its previous block all status.
+ *       If the block is allocated, the lowest bit is set to 1, and 0 otherwise.
+ *       If the previous block is allocated, the second lowest bit is set to 1, and 0 otherwise.
+ */
+static word_t pack(size_t size, bool alloc, bool prev_alloc) {
+    return size | alloc | (prev_alloc ? 2 : 0);
 }
 
 /**
- * calculate the corresponding index of a size class that `size` can fit in its size range
+ * get block pointer by adding offset to heap_start
  */
-static uint32_t get_seglist_idx(size_t size) {
-    uint32_t highest_1bit_idx = get_highest_1bit_idx(size);
-
-    // special case for each size class's upper boundary
-    if (size == (size_t)(1 << (highest_1bit_idx - 1)))
-        highest_1bit_idx--;
-
-    uint32_t idx;
-    // first size class
-    if (highest_1bit_idx <= 4)
-        idx = 0;
-    // last size class
-    else if (highest_1bit_idx >= 19)
-        idx = 15;
-    // other normal size classes
-    else
-        idx = highest_1bit_idx - 4;
-
-    // make sure: 0 <= idx < 16
-    dbg_ensures(idx < 16);
-    return idx;
+static block_t *get_block_ptr_by_offset(word_t offset) {
+    return (block_t *)(heap_start + offset);
 }
 
 /**
- * calculate the index of highest `1` in the bit pattern of `num`
+ * get block offset by subtracting block pointer from heap_start
  */
-static uint32_t get_highest_1bit_idx(uint32_t num) {
-    dbg_assert(num > 0);
-    uint8_t hi = 31, lo = 0, width = 16;
-    uint32_t idx = 0;
-    while (width) {
-        if ((num >> width)) {
-            lo += width;
-            idx += width;
-            num >>= width;
-        } else {
-            hi -= width;
-        }
-        width >>= 1;
-    }
-
-    return idx + 1;
+static word_t get_offset_by_block_ptr(block_t *bp) {
+    return (word_t)(((char *)bp) - heap_start);
 }
-
-// static block_t *get_block_ptr_by_offset(word_t offset) {
-//     return (block_t *)(heap_start + offset);
-// }
-// static word_t get_offset_by_block_ptr(block_t *bp) {
-//     return (word_t)(((char *)bp) - heap_start);
-// }
+#endif
 
 /*
  * mm_checkheap

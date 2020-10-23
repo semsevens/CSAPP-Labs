@@ -1205,7 +1205,7 @@ static void printresults(int n, stats_t *stats) {
         if (sumweight == 0)
             sumweight = 1;
 
-        printf("%2d     %5.0f%%%8.0f%10.6f %6.0f\n",
+        printf("%2d     %5.2f%%%8.0f%10.6f %6.0f\n",
                sumweight,
                (sumutil / (double)sumweight) * 100.0,
                sumops,
