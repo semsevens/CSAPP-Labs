@@ -50,6 +50,12 @@
  *      - for small extend request, decrease `chunksize` by factor of 2
  * 
  *      this optimization can increase space utilization
+ * 
+ * # use gcc builtin function to calculate highest 1 bit
+ *      ref: https://stackoverflow.com/questions/671815/what-is-the-fastest-most-efficient-way-to-find-the-highest-set-bit-msb-in-an-i
+ * 
+ *      this optimization can increase throughput
+ * 
  */
 #include <assert.h>
 #include <stddef.h>
@@ -686,9 +692,24 @@ static uint32_t get_seglist_idx(size_t size) {
     return idx;
 }
 
+#define USE_GCC_BUILTIN
+/**
+ * calculate the index of highest `1` in the bit pattern of `num`
+ * 
+ * use builtin function to fast calculate
+ * ref: `__builtin_clz` from https://gcc.gnu.org/onlinedocs/gcc-4.8.0/gcc/Other-Builtins.html
+ */
+#ifdef USE_GCC_BUILTIN
+static uint32_t get_highest_1bit_idx(uint32_t num) {
+    dbg_assert(num > 0);
+    return 31 - __builtin_clz(num);
+}
+#endif
+
 /**
  * calculate the index of highest `1` in the bit pattern of `num`
  */
+#ifndef USE_GCC_BUILTIN
 static uint32_t get_highest_1bit_idx(uint32_t num) {
     dbg_assert(num > 0);
     uint8_t hi = 31, lo = 0, width = 16;
@@ -701,11 +722,17 @@ static uint32_t get_highest_1bit_idx(uint32_t num) {
         } else {
             hi -= width;
         }
+
+        if (num >= (uint32_t)(1 << (width - 1))) {
+            idx += (width - 1);
+            break;
+        }
         width >>= 1;
     }
 
     return idx + 1;
 }
+#endif
 
 #ifndef USE_MACRO
 /*
