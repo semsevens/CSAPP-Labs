@@ -4,26 +4,26 @@ Processor clock rate ~= 2595.1 MHz
 
 Results for mm malloc:
    valid  util   ops    secs      Kops  trace
- * yes    98%    4805  0.000099  48293 ./traces/amptjp.rep
- * yes    97%    5032  0.000106  47585 ./traces/cccp.rep
- * yes    64%   14400  0.000168  85763 ./traces/coalescing-bal.rep
-   yes    96%      15  0.000000  53471 ./traces/corners.rep
- * yes    98%    5683  0.000143  39842 ./traces/cp-decl.rep
- * yes    70%     118  0.000002  66920 ./traces/hostname.rep
- * yes    85%   19405  0.000321  60516 ./traces/login.rep
- * yes    76%     372  0.000005  73818 ./traces/ls.rep
-   yes    25%      17  0.000000  58511 ./traces/malloc-free.rep
-   yes    30%      10  0.000000  41589 ./traces/malloc.rep
- * yes    77%    1494  0.000021  69585 ./traces/perl.rep
- * yes    92%    4800  0.000198  24226 ./traces/random.rep
- * yes    77%     147  0.000003  55789 ./traces/rm.rep
-   yes    87%      12  0.000000  37430 ./traces/short2.rep
- * yes    49%   57716  0.000650  88780 ./traces/boat.rep
- * yes    59%     200  0.000002  92419 ./traces/lrucd.rep
- * yes    85%  100000  0.003123  32025 ./traces/alaska.rep
- * yes    87%     200  0.000002  97378 ./traces/nlydf.rep
- * yes    80%     200  0.000002  90328 ./traces/qyqyc.rep
- * yes    65%     200  0.000002  97378 ./traces/rulsr.rep
-16        79%  214772  0.004847  44313
+ * yes    98%    4805  0.000123  38963 ./traces/amptjp.rep
+ * yes    98%    5032  0.000105  48040 ./traces/cccp.rep
+ * yes    65%   14400  0.000186  77328 ./traces/coalescing-bal.rep
+   yes    96%      15  0.000000  45369 ./traces/corners.rep
+ * yes    97%    5683  0.000164  34695 ./traces/cp-decl.rep
+ * yes    73%     118  0.000002  52346 ./traces/hostname.rep
+ * yes    91%   19405  0.000435  44634 ./traces/login.rep
+ * yes    88%     372  0.000007  56948 ./traces/ls.rep
+   yes    27%      17  0.000000  60600 ./traces/malloc-free.rep
+   yes    33%      10  0.000000  43397 ./traces/malloc.rep
+ * yes    86%    1494  0.000027  54864 ./traces/perl.rep
+ * yes    93%    4800  0.000203  23615 ./traces/random.rep
+ * yes    78%     147  0.000003  53943 ./traces/rm.rep
+   yes    89%      12  0.000000  41302 ./traces/short2.rep
+ * yes    56%   57716  0.000928  62181 ./traces/boat.rep
+ * yes    61%     200  0.000002  81813 ./traces/lrucd.rep
+ * yes    85%  100000  0.003398  29432 ./traces/alaska.rep
+ * yes    88%     200  0.000002  81813 ./traces/nlydf.rep
+ * yes    84%     200  0.000003  76485 ./traces/qyqyc.rep
+ * yes    67%     200  0.000002  83525 ./traces/rulsr.rep
+16        82%  214772  0.005591  38417
 
-Perf index = 35.44 (util) + 37.00 (thru) = 72.44/100
+Perf index = 41.39 (util) + 33.84 (thru) = 75.23/100
