@@ -64,6 +64,11 @@
  * Students can get more points for building faster allocators, up to
  * this point (in ops / sec)
  */
+/**
+ * Original MAX_SPEED to set to 25000E3, 
+ * which is a little slower when this lab is resolved on 2020,
+ * so I change it higher to 42000E3
+ */
 #define MAX_SPEED 42000E3
 
 /* 
