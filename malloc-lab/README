@@ -4,6 +4,18 @@ https://www.cs.cmu.edu/afs/cs/academic/class/15213-f10/www/labs/malloclab-handou
 which is different from other labs that are from official student website http://csapp.cs.cmu.edu/3e/labs.html
 
 #####################################################################
+My implementation for malloc lab:
+
+- mm-naive:     extremely simple version, from handout
+- mm-implicit:  implicit free list, with macros, based on code from textbook
+- mm-baseline:  implicit free list, with inline helper functions
+- mm-explicit:  explicit free list
+- mm-segregated:segregated free list
+- mm-final:     segregated free list, based on mm-segregated, apply as many optimizations as possible
+
+the final score is 91.80, see `results` folder for details
+
+#####################################################################
 # CS:APP Malloc Lab
 # Handout files for students
 ######################################################################
