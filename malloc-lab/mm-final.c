@@ -5,7 +5,7 @@
  * 
  * segregated free list
  * - min_block_size: 16
- * - 16 size class, (0,16],(16,32],(32, 64],(64, 128],...,(2^(i+3), 2^(i+4)],...,(2^18, +inf)
+ * - 16 size class, (0,16],(16,24],(24,32],(32,48],(48,64],(64, 128],...,(2^(i+1), 2^(i+2)],...,(2^16, +inf)
  * - circle explicit free list
  * - first fit
  * - LIFO (free to the header of size class)
@@ -32,7 +32,7 @@
  * 
  *      this optimization can increase space utilization
  * 
- * # footless, only need to maintain footer for free block
+ * # footerless, only need to maintain footer for free block
  *      this optimization is inspired from lecture: <Dynamic Memory Allocation: Basic>:
  *          > Boundary tag needed only for free blocks
  *          > When sizes are multiples of 4 or more, have 2+ spare bits
@@ -55,6 +55,12 @@
  *      ref: https://stackoverflow.com/questions/671815/what-is-the-fastest-most-efficient-way-to-find-the-highest-set-bit-msb-in-an-i
  * 
  *      this optimization can increase throughput
+ * 
+ * # more fine granularity size class
+ *      - separate classes for each small size
+ *      - for larger size: one class for each size (2^i, 2^(i+1)]
+ * 
+ *      this optimization can increase space utilization
  * 
  */
 #include <assert.h>
@@ -268,15 +274,29 @@ int mm_init(void) {
     // Check `get_seglist_idx` helper function correctness
     dbg_assert(get_seglist_idx(1) == 0);
     dbg_assert(get_seglist_idx(16) == 0);
-    dbg_assert(get_seglist_idx(32) == 1);
-    dbg_assert(get_seglist_idx(33) == 2);
-    dbg_assert(get_seglist_idx(42) == 2);
-    dbg_assert(get_seglist_idx(64) == 2);
-    dbg_assert(get_seglist_idx(1 << 10) == 6);
-    dbg_assert(get_seglist_idx((1 << 12) - 1) == 8);
-    dbg_assert(get_seglist_idx(1 << 18) == 14);
-    dbg_assert(get_seglist_idx((1 << 18) - 1) == 14);
-    dbg_assert(get_seglist_idx((1 << 18) + 1) == 15);
+    dbg_assert(get_seglist_idx(20) == 1);
+    dbg_assert(get_seglist_idx(24) == 1);
+    dbg_assert(get_seglist_idx(32) == 2);
+    dbg_assert(get_seglist_idx(33) == 3);
+    dbg_assert(get_seglist_idx(42) == 3);
+    dbg_assert(get_seglist_idx(64) == 4);
+    dbg_assert(get_seglist_idx(65) == 5);
+    dbg_assert(get_seglist_idx(128) == 5);
+    dbg_assert(get_seglist_idx(160) == 6);
+    dbg_assert(get_seglist_idx(200) == 6);
+    dbg_assert(get_seglist_idx(300) == 7);
+    dbg_assert(get_seglist_idx(400) == 7);
+    dbg_assert(get_seglist_idx(500) == 7);
+    dbg_assert(get_seglist_idx(512) == 7);
+    dbg_assert(get_seglist_idx(513) == 8);
+    dbg_assert(get_seglist_idx(1 << 10) == 8);
+    dbg_assert(get_seglist_idx((1 << 12) - 1) == 10);
+    dbg_assert(get_seglist_idx(1 << 14) == 12);
+    dbg_assert(get_seglist_idx((1 << 14) + 1) == 13);
+    dbg_assert(get_seglist_idx((1 << 15) - 1) == 13);
+    dbg_assert(get_seglist_idx(1 << 15) == 13);
+    dbg_assert(get_seglist_idx((1 << 15) + 1) == 14);
+    dbg_assert(get_seglist_idx((1 << 16) + 1) == 15);
     dbg_assert(get_seglist_idx((1 << 19) + 1) == 15);
     dbg_assert(get_seglist_idx(1 << 22) == 15);
 
@@ -667,32 +687,26 @@ static void split_block(block_t *bp, size_t asize) {
 }
 
 /**
- * calculate the corresponding index of a size class that `size` can fit in its size range
+ * calculate the corresponding index of a size class for which `size` can fit in its size range
  */
 static uint32_t get_seglist_idx(size_t size) {
-    uint32_t highest_1bit_idx = get_highest_1bit_idx(size);
+    if (size <= min_block_size)
+        return 0;
+    else if (size <= 32)
+        return ((size - 1) >> 3) - 1;
+    else if (size <= 64)
+        return ((size - 1) >> 4) + 1;
+    else {
+        uint32_t highest_1bit_idx = get_highest_1bit_idx(size - 1);
 
-    // special case for each size class's upper boundary
-    if (size == (size_t)(1 << (highest_1bit_idx - 1)))
-        highest_1bit_idx--;
+        uint32_t idx = min(highest_1bit_idx - 2, size_class_cnt - 1);
 
-    uint32_t idx;
-    // first size class
-    if (highest_1bit_idx <= 4)
-        idx = 0;
-    // last size class
-    else if (highest_1bit_idx >= 19)
-        idx = 15;
-    // other normal size classes
-    else
-        idx = highest_1bit_idx - 4;
-
-    // make sure: 0 <= idx < 16
-    dbg_ensures(idx < 16);
-    return idx;
+        // make sure: idx < 16
+        dbg_ensures(idx < size_class_cnt);
+        return idx;
+    }
 }
 
-#define USE_GCC_BUILTIN
 /**
  * calculate the index of highest `1` in the bit pattern of `num`
  * 
