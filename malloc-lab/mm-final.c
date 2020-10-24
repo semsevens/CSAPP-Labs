@@ -245,10 +245,16 @@ static uint32_t get_seglist_idx(size_t size);
 static uint32_t get_highest_1bit_idx(uint32_t num);
 
 static void dbg_print_heap(bool skip);
-#ifdef DEBUG
-#define print_heap(...) dbg_print_heap(false)
-#else
+#ifdef PRINT_HEAP
 #define print_heap(...) dbg_print_heap(true)
+#else
+#define print_heap(...) dbg_print_heap(false)
+#endif
+
+#ifdef CHECK_HEAP
+#define checkheap(...) mm_checkheap(__VA_ARGS__)
+#else
+#define checkheap(...) mm_checkheap(0)
 #endif
 
 /*
@@ -357,7 +363,7 @@ int mm_init(void) {
  *      and place the remainder in the appropriate size class.
  */
 void *malloc(size_t size) {
-    dbg_requires(mm_checkheap(__LINE__));
+    assert(checkheap(__LINE__));
 
     size_t asize;      // Adjusted block size
     size_t extendsize; // Amount to extend heap if no fit is found
@@ -366,7 +372,7 @@ void *malloc(size_t size) {
 
     // Ignore spurious request
     if (size == 0) {
-        dbg_ensures(mm_checkheap(__LINE__));
+        assert(checkheap(__LINE__));
         return bp;
     }
 
@@ -404,7 +410,7 @@ void *malloc(size_t size) {
 
     dbg_printf("Malloc size %zd on address %p, with adjusted size %zd.\n", size, bp, asize);
     print_heap();
-    dbg_ensures(mm_checkheap(__LINE__));
+    assert(checkheap(__LINE__));
     return bp;
 }
 
@@ -418,7 +424,7 @@ void free(void *ptr) {
     if (ptr == NULL) {
         return;
     }
-    dbg_requires(mm_checkheap(__LINE__));
+    assert(checkheap(__LINE__));
     dbg_printf("free %p\n", ptr);
 
     block_t *block = payload_to_header(ptr);
@@ -426,7 +432,7 @@ void free(void *ptr) {
     mark_as_free(block);
 
     coalesce(block);
-    dbg_requires(mm_checkheap(__LINE__));
+    assert(checkheap(__LINE__));
 }
 
 /*
@@ -447,11 +453,22 @@ void *realloc(void *oldptr, size_t size) {
 
     size_t asize = get_asize(size);
 
+    dbg_printf("realloc @ %p, oldsize: %zd, newsize: %zd\n", old_block, oldsize, asize);
+
     // enough space to realloc, just shrink old space, and free any unused space
     if (oldsize >= asize) {
         // unused space is able to meet another malloc request, so put it into free list
         if ((oldsize - asize) >= min_block_size) {
-            split_block(old_block, asize);
+            // maintain `prev_alloc` unchanged
+            write_header(old_block, asize, true, get_prev_alloc(old_block));
+
+            block_t *block_next = find_next(old_block);
+            // the `prev_alloc` of next block is certainly true
+            write_header(block_next, (oldsize - asize), false, true);
+            write_footer(block_next, (oldsize - asize), false, true);
+
+            // with newly freed block, need to coalesce
+            coalesce(find_next(old_block));
         }
         return oldptr;
     }
@@ -963,17 +980,21 @@ static word_t get_offset_by_block_ptr(block_t *bp) {
 
 /*
  * mm_checkheap
+ * 
+ * - 
+ * -
  */
 bool mm_checkheap(int lineno) {
+    if (!lineno)
+        return true;
+
     if (!heap_listp) {
         printf("NULL heap list pointer!\n");
         return false;
     }
 
     block_t *hi = mem_heap_hi();
-    /**
-     * - check header and footer consistency
-     */
+
     block_t *prev = NULL, *curr = heap_listp, *next;
     bool prev_alloced = true, curr_alloced;
     word_t hdr, ftr;
@@ -993,6 +1014,9 @@ bool mm_checkheap(int lineno) {
 
         curr_alloced = get_alloc(curr);
         if (!curr_alloced) {
+            /**
+             * check header and footer consistency
+             */
             ftr = *find_prev_footer(next);
             if (hdr != ftr) {
                 printf("Header (0x%08X) at %p != footer (0x%08X) at %p, lineno: %d\n",
@@ -1016,8 +1040,8 @@ bool mm_checkheap(int lineno) {
  * - for *allocated* block, show payload size
  * - for *free* block, show predecessor pointer, successor pointer
  */
-static void dbg_print_heap(bool skip) {
-    if (skip)
+static void dbg_print_heap(bool print) {
+    if (!print)
         return;
 
     block_t *hi = mem_heap_hi();

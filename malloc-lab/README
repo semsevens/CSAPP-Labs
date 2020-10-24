@@ -13,7 +13,7 @@ My implementation for malloc lab:
 - mm-segregated:segregated free list
 - mm-final:     segregated free list, based on mm-segregated, apply as many optimizations as possible
 
-the final score is 91.80, see `results` folder for details
+the final score is 91.81, see `results` folder for details
 
 #####################################################################
 # CS:APP Malloc Lab
