@@ -6,7 +6,7 @@
 - [x] Lab3: attack lab
 - [x] Lab4: cache lab
 - [x] Lab5: shell lab
-- [ ] Lab6: malloc lab
+- [x] Lab6: malloc lab
 - [ ] Lab7: proxy lab
 - [ ] Lab Hidden: proc lab (focus on process control and signal handling, similar to shell lab)
 
