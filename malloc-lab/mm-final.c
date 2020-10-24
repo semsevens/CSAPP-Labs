@@ -981,8 +981,24 @@ static word_t get_offset_by_block_ptr(block_t *bp) {
 /*
  * mm_checkheap
  * 
- * - 
- * -
+ * block level
+ * - check `prev_alloc` status is consistent with the actual alloc status of previous block
+ * - check header and footer consistency
+ * - payload area is aligned at 8-multiple
+ * - block size is also 8-multiple
+ * - block size >= min_block_size
+ * - no contiguous free blocks
+ * 
+ * size class list level
+ * - no allocated blocks in free list
+ * - next/prev pointers in consecutive free blocks are consistent
+ * - all free blocks are in the free list
+ * - each segregated list contains only blocks in the appropriate size class
+ * 
+ * heap level
+ * - all blocks between heap boundaries
+ * - correct sentinel blocks
+ * 
  */
 bool mm_checkheap(int lineno) {
     if (!lineno)
@@ -993,15 +1009,22 @@ bool mm_checkheap(int lineno) {
         return false;
     }
 
-    block_t *hi = mem_heap_hi();
+    char *hi = mem_heap_hi();
+    char *lo = mem_heap_lo();
 
     block_t *prev = NULL, *curr = heap_listp, *next;
+    int free_block_cnt = 0;
+
+    // block level check
     bool prev_alloced = true, curr_alloced;
     word_t hdr, ftr;
-    while (curr + 1 < hi) {
+    while (curr + 1 < (block_t *)hi) {
         next = find_next(curr);
         hdr = curr->header;
 
+        /**
+         * check `prev_alloc` status is consistent with the actual alloc status of previous block
+         */
         if (get_prev_alloc(curr) != prev_alloced) {
             printf("Prev alloc bit %d at %p != previous block alloced status: %d at %p, lineno: %d\n",
                    get_prev_alloc(curr), get_header(curr), prev_alloced, get_header(prev), lineno);
@@ -1012,11 +1035,16 @@ bool mm_checkheap(int lineno) {
             return false;
         }
 
+        /**
+         * check header and footer consistency
+         * 
+         * only needed for free block
+        */
         curr_alloced = get_alloc(curr);
         if (!curr_alloced) {
-            /**
-             * check header and footer consistency
-             */
+            // accumulate free block counter
+            free_block_cnt++;
+
             ftr = *find_prev_footer(next);
             if (hdr != ftr) {
                 printf("Header (0x%08X) at %p != footer (0x%08X) at %p, lineno: %d\n",
@@ -1025,9 +1053,136 @@ bool mm_checkheap(int lineno) {
             }
         }
 
+        /**
+         * payload area is aligned at 8-multiple
+         */
+        if ((uint64_t)header_to_payload(curr) & 0x7) {
+            printf("Payload area is not aligned at 8-multiple, it is aligned at %p\n", header_to_payload(curr));
+            return false;
+        }
+
+        /**
+         * block size is also 8-multiple
+         */
+        if (extract_size(hdr) & 0x7) {
+            printf("Size: %zd of block at %p is not 8-multiple\n", extract_size(hdr), curr);
+            return false;
+        }
+
+        /**
+         * block size >= min_block_size, except the prologue
+         */
+        if (extract_size(hdr) < min_block_size) {
+            if (curr != heap_listp) {
+                printf("Size: %zd of block at %p is smaller than minimal block size: %zd\n", extract_size(hdr), curr, min_block_size);
+                return false;
+            }
+        }
+
+        /**
+         * no contiguous free blocks
+         */
+        if (!curr_alloced && !prev_alloced) {
+            printf("Contiguous free block, prev at %p, curr at %p\n", prev, curr);
+            printf("Prev block at %p status: size: %zd, alloced: %d, prev_alloced: %d, next: %p\n",
+                   get_header(prev), get_size(prev), get_alloc(prev), get_prev_alloc(prev), find_next(prev));
+            printf("Curr block at %p status: size: %zd, alloced: %d, prev_alloced: %d, next: %p\n",
+                   get_header(curr), get_size(curr), get_alloc(curr), get_prev_alloc(curr), find_next(curr));
+            return false;
+        }
+
+        /**
+         * all blocks between heap boundaries
+         */
+        if ((char *)curr < lo || (char *)curr > hi) {
+            printf("Block at %p is out of heap boundaries\n", curr);
+            return false;
+        }
+
         prev_alloced = curr_alloced;
         prev = curr;
         curr = next;
+    }
+
+    // size class list level check
+    block_t *pred;
+    for (size_t i = 0; i < size_class_cnt; i++) {
+        // check each free block in this size class
+        pred = &(seglist[i]);
+        for (curr = get_block_ptr_by_offset(seglist[i].succ_offset);
+             // not until loop back to the header of this size class
+             curr != &(seglist[i]);
+             curr = get_block_ptr_by_offset(curr->succ_offset)) {
+
+            /**
+             * no allocated blocks in free list
+             */
+            if (get_alloc(curr)) {
+                printf("Allocated block at %p in free list of size class: %zd\n", curr, i);
+                return false;
+            }
+
+            // decrease free block counter
+            free_block_cnt--;
+
+            /**
+             * succ/pred pointers in consecutive free blocks are consistent
+             */
+            if (pred != get_block_ptr_by_offset(curr->pred_offset)) {
+                printf("Pred pointer: %p in block at %p is inconsistent with the actual predecessor block at %p\n",
+                       get_block_ptr_by_offset(curr->pred_offset), curr, pred);
+                return false;
+            }
+            if (curr != get_block_ptr_by_offset(get_block_ptr_by_offset(curr->succ_offset)->pred_offset)) {
+                printf("Succ pointer: %p in block at %p is inconsistent with the actual successor block at %p\n",
+                       get_block_ptr_by_offset(get_block_ptr_by_offset(curr->succ_offset)->pred_offset), get_block_ptr_by_offset(curr->succ_offset), curr);
+                return false;
+            }
+
+            /**
+             * each segregated list contains only blocks in the appropriate size class
+             */
+            if (i != get_seglist_idx(get_size(curr))) {
+                printf("Block at %p, with size: %zd should not in seglist: %zd\n", curr, get_size(curr), i);
+                return false;
+            }
+
+            pred = curr;
+        }
+    }
+
+    /**
+     * all free blocks are in the free list
+     * 
+     * use counter to check,
+     * increase in block level iteration, and decrease in size class list level iteration
+     */
+    if (free_block_cnt) {
+        printf("Not all free blocks are in the free list, escaped free block count: %d\n", free_block_cnt);
+        return false;
+    }
+
+    // heap level check
+    /**
+     * correct sentinel blocks
+     */
+    block_t *prologue = heap_listp;
+    if (get_size(prologue) != prologue_size) {
+        printf("Prologue size: %zd incorrect, except size: %zd\n", get_size(prologue), prologue_size);
+        return false;
+    }
+    if (!get_alloc(prologue)) {
+        printf("Prologue is not allocated\n");
+        return false;
+    }
+    block_t *epilogue = (block_t *)(hi + 1 - epilogue_size);
+    if (get_size(epilogue)) {
+        printf("Epilogue size: %zd incorrect, except size: 0\n", get_size(epilogue));
+        return false;
+    }
+    if (!get_alloc(epilogue)) {
+        printf("Epilogue is not allocated\n");
+        return false;
     }
 
     return true;

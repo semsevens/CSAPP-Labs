@@ -8,3 +8,6 @@ for rep in $REPS; do
   echo "checking $rep"
   ./mdriver -c $rep || exit
 done
+
+echo "$(printf '=%.0s' {1..120})"
+echo "All heap checker passed!"
