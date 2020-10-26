@@ -80,7 +80,7 @@ choose fall 2017 because this semester's videos are available on youtube
   - [x] reading 11.1-11.4
   - [ ] video
 - [ ] Network Programming (Part II)
-  - [ ] reading 11.5-11.6
+  - [x] reading 11.5-11.6
   - [ ] video
 - [ ] Concurrent programming
   - [ ] reading 12.1-12.3
