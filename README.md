@@ -83,7 +83,7 @@ choose fall 2017 because this semester's videos are available on youtube
   - [x] reading 11.5-11.6
   - [x] video
 - [ ] Concurrent programming
-  - [ ] reading 12.1-12.3
+  - [x] reading 12.1-12.3
   - [ ] video
 - [ ] Synchronization: Basic
   - [ ] reading 12.4,12.5.1-3
