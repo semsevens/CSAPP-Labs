@@ -82,9 +82,9 @@ choose fall 2017 because this semester's videos are available on youtube
 - [x] Network Programming (Part II)
   - [x] reading 11.5-11.6
   - [x] video
-- [ ] Concurrent programming
+- [x] Concurrent programming
   - [x] reading 12.1-12.3
-  - [ ] video
+  - [x] video
 - [ ] Synchronization: Basic
   - [ ] reading 12.4,12.5.1-3
   - [ ] video
