@@ -86,7 +86,7 @@ choose fall 2017 because this semester's videos are available on youtube
   - [x] reading 12.1-12.3
   - [x] video
 - [ ] Synchronization: Basic
-  - [ ] reading 12.4,12.5.1-3
+  - [x] reading 12.4,12.5.1-3
   - [ ] video
 - [ ] Synchronization: Advanced
   - [ ] reading 12.5.4-5,12.7-8
