@@ -88,9 +88,9 @@ choose fall 2017 because this semester's videos are available on youtube
 - [x] Synchronization: Basic
   - [x] reading 12.4,12.5.1-3
   - [x] video
-- [ ] Synchronization: Advanced
+- [x] Synchronization: Advanced
   - [x] reading 12.5.4-5,12.7-8
-  - [ ] video
+  - [x] video
 - [ ] Thread-Level Parallelism
   - [x] reading 12.6
   - [ ] video
