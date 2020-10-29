@@ -92,7 +92,7 @@ choose fall 2017 because this semester's videos are available on youtube
   - [x] reading 12.5.4-5,12.7-8
   - [ ] video
 - [ ] Thread-Level Parallelism
-  - [ ] reading 12.6
+  - [x] reading 12.6
   - [ ] video
 - [ ] Future of Computing I
   - [ ] video
