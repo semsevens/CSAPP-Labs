@@ -91,9 +91,9 @@ choose fall 2017 because this semester's videos are available on youtube
 - [x] Synchronization: Advanced
   - [x] reading 12.5.4-5,12.7-8
   - [x] video
-- [ ] Thread-Level Parallelism
+- [x] Thread-Level Parallelism
   - [x] reading 12.6
-  - [ ] video
+  - [x] video
 - [ ] Future of Computing I
   - [ ] video
 - [ ] Future of Computing II
