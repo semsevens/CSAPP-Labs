@@ -1,0 +1,8 @@
+*.o
+proxy
+
+.vscode
+tiny/cgi-bin/adder
+tiny/tiny
+.noproxy
+.proxy
