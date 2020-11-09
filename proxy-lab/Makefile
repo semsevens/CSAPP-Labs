@@ -5,7 +5,7 @@
 # build your proxy from sources.
 
 CC = gcc
-CFLAGS = -g -Wall
+CFLAGS = -g -Wall -DDEBUG
 LDFLAGS = -lpthread
 
 all: proxy
