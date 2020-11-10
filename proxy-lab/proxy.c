@@ -1,8 +1,12 @@
 #include "csapp.h"
+#include "sbuf.h"
 
 /* Recommended max cache and object sizes */
 #define MAX_CACHE_SIZE 1049000
 #define MAX_OBJECT_SIZE 102400
+#define NTHREADS 4
+#define SBUFSIZE 16
+
 #ifdef DEBUG
 #define dbg_printf(...) printf(__VA_ARGS__)
 #else
@@ -12,9 +16,12 @@
 void doit(int fd);
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
 int parse_uri(int fd, char *uri, char *hostname, char *hostport, char *path);
+void *thread(void *vargp);
 
 /* You won't lose style points for including this long line in your code */
 static const char *user_agent_hdr = "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:10.0.3) Gecko/20120305 Firefox/10.0.3\r\n";
+/* Shared buffer of connected descriptors */
+sbuf_t sbuf;
 
 int main(int argc, char **argv) {
     if (argc != 2) {
@@ -23,6 +30,12 @@ int main(int argc, char **argv) {
     }
 
     int listenfd = Open_listenfd(argv[1]);
+
+    sbuf_init(&sbuf, SBUFSIZE);
+    pthread_t tid;
+    for (size_t i = 0; i < NTHREADS; i++) {
+        Pthread_create(&tid, NULL, thread, NULL);
+    }
 
     int connfd;
     socklen_t clientlen;
@@ -34,12 +47,19 @@ int main(int argc, char **argv) {
         Getnameinfo((SA *)&clientaddr, clientlen, hostname, MAXLINE, port, MAXLINE, 0);
         dbg_printf("Accepted connection from (%s, %s)\n", hostname, port);
 
-        doit(connfd);
-
-        Close(connfd);
+        sbuf_insert(&sbuf, connfd);
     }
 
     return 0;
+}
+
+void *thread(void *vargp) {
+    Pthread_detach(Pthread_self());
+    while (1) {
+        int connfd = sbuf_remove(&sbuf);
+        doit(connfd);
+        Close(connfd);
+    }
 }
 
 void doit(int connfd) {
