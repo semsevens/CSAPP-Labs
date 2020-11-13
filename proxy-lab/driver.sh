@@ -25,6 +25,11 @@ PORT_START=1024
 PORT_MAX=65000
 MAX_PORT_TRIES=10
 
+# MAX_CACHE_SIZE: 50K
+MAX_CACHE_SIZE=51200
+# MAX_OBJECT_SIZE: 30K
+MAX_OBJECT_SIZE=30690
+
 # List of text and binary files for the basic test
 BASIC_LIST="home.html
             csapp.c
@@ -33,9 +38,20 @@ BASIC_LIST="home.html
             tiny"
 
 # List of text files for the cache test
-CACHE_LIST="tiny.c
+# godzilla.gif  12,155 bytes
+# godzilla.jpg  10,858 bytes
+# tiny          40,536 bytes 
+# home.html     120 bytes
+# csapp.c       24,654 bytes
+# csapp.h       6,633 bytes
+CACHE_LIST="godzilla.gif
+            godzilla.jpg
+            tiny
             home.html
-            csapp.c"
+            csapp.c
+            csapp.h"
+
+LARGE_FILE="tiny"
 
 # The file we will fetch for various tests
 FETCH_FILE="home.html"
@@ -349,6 +365,8 @@ echo "concurrencyScore: $concurrencyScore/${MAX_CONCURRENCY}"
 echo ""
 echo "*** Cache ***"
 
+make CFLAGS="-g -Wall -DDEBUG -DMAX_CACHE_SIZE=${MAX_CACHE_SIZE} -DMAX_OBJECT_SIZE=${MAX_OBJECT_SIZE}" -B
+
 # Run the Tiny Web server
 tiny_port=$(free_port)
 echo "Starting tiny on port ${tiny_port}"
@@ -382,6 +400,20 @@ echo "Killing tiny"
 kill $tiny_pid 2> /dev/null
 wait $tiny_pid 2> /dev/null
 
+cacheScore=0
+
+# Try to fetch a large object that not been cached
+echo "Trying to fetch a large object: ./tiny/${LARGE_FILE}"
+download_proxy $NOPROXY_DIR ${LARGE_FILE} "http://localhost:${tiny_port}/${LARGE_FILE}" "http://localhost:${proxy_port}"
+# the result SHOULD be different from the cached version
+diff -q ./tiny/${LARGE_FILE} ${NOPROXY_DIR}/${LARGE_FILE}  &> /dev/null
+if [ $? -eq 0 ]; then
+    echo "Failure: ${LARGE_FILE} should be different."
+else
+    cacheScore=`expr ${cacheScore} + 7`
+    echo "Success: ${LARGE_FILE} is different."
+fi
+
 # Now try to fetch a cached copy of one of the fetched files.
 echo "Fetching a cached copy of ./tiny/${FETCH_FILE} into ${NOPROXY_DIR}"
 download_proxy $NOPROXY_DIR ${FETCH_FILE} "http://localhost:${tiny_port}/${FETCH_FILE}" "http://localhost:${proxy_port}"
@@ -390,10 +422,9 @@ download_proxy $NOPROXY_DIR ${FETCH_FILE} "http://localhost:${tiny_port}/${FETCH
 # file in the tiny directory
 diff -q ./tiny/${FETCH_FILE} ${NOPROXY_DIR}/${FETCH_FILE}  &> /dev/null
 if [ $? -eq 0 ]; then
-    cacheScore=${MAX_CACHE}
+    cacheScore=`expr ${cacheScore} + 8`
     echo "Success: Was able to fetch tiny/${FETCH_FILE} from the cache."
 else
-    cacheScore=0
     echo "Failure: Was not able to fetch tiny/${FETCH_FILE} from the proxy cache."
 fi
 
@@ -401,6 +432,8 @@ fi
 echo "Killing proxy"
 kill $proxy_pid 2> /dev/null
 wait $proxy_pid 2> /dev/null
+
+clear_dirs
 
 echo "cacheScore: $cacheScore/${MAX_CACHE}"
 

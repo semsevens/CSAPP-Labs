@@ -12,6 +12,7 @@ int parse_uri(int fd, char *uri, char *hostname, char *hostport, char *path);
 
 void sigint_handler(int sig);
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
+void client500error(int fd);
 
 /* You won't lose style points for including this long line in your code */
 static const char *user_agent_hdr = "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:10.0.3) Gecko/20120305 Firefox/10.0.3\r\n";
@@ -108,7 +109,11 @@ void doit(int connfd) {
 void direct_serve(int connfd, char *hostname, char *hostport, char *path, char *method) {
     char buf[MAXLINE];
 
-    int clientfd = Open_clientfd(hostname, hostport);
+    int clientfd;
+    if ((clientfd = open_clientfd(hostname, hostport)) < 0) {
+        client500error(connfd);
+        return;
+    }
 
     rio_t client_rio;
     Rio_readinitb(&client_rio, clientfd);
@@ -129,22 +134,25 @@ void direct_serve(int connfd, char *hostname, char *hostport, char *path, char *
 
     char *obj_cache_base_p = Malloc(MAX_OBJECT_SIZE);
     char *obj_cache_p = obj_cache_base_p;
-    ssize_t readNum;
+    ssize_t readNum, totalNum = 0;
     while ((readNum = Rio_readnb(&client_rio, buf, MAXLINE))) {
-        if ((size_t)(obj_cache_p - obj_cache_base_p) < MAX_OBJECT_SIZE) {
+        if ((totalNum + readNum) < MAX_OBJECT_SIZE) {
             memcpy(obj_cache_p, buf, readNum);
             obj_cache_p += readNum;
         }
+        totalNum += readNum;
 
         Rio_writen(connfd, buf, readNum);
     }
 
-    size_t obj_size = (size_t)(obj_cache_p - obj_cache_base_p);
     // object can be cached
-    if (obj_size <= MAX_OBJECT_SIZE) {
-        cache_item_t *obj = build_cache_item(hostname, hostport, path, obj_cache_base_p, obj_size);
+    if (totalNum <= MAX_OBJECT_SIZE) {
+        dbg_printf("%s:%s%s can be cached, object size: %zd\n", hostname, hostport, path, totalNum);
+        cache_item_t *obj = build_cache_item(hostname, hostport, path, obj_cache_base_p, totalNum);
 
         cache_insert(&cache, obj);
+    } else {
+        dbg_printf("%s:%s%s cannot be cached, object size: %zd\n", hostname, hostport, path, totalNum);
     }
     Free(obj_cache_base_p);
 }
@@ -228,6 +236,10 @@ void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longms
     Rio_writen(fd, buf, strlen(buf));
     sprintf(buf, "<hr><em>Proxy server</em>\r\n");
     Rio_writen(fd, buf, strlen(buf));
+}
+
+void client500error(int fd) {
+    clienterror(fd, "Internal server error", "500", "Internal server error", "Internal server error");
 }
 
 /**
