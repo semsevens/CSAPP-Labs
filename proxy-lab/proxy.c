@@ -91,14 +91,13 @@ void doit(int connfd) {
     if (parse_uri(connfd, uri, hostname, hostport, path) < 0) {
         return;
     };
-    dbg_printf("hostname: %s, hostport: %s, path: %s\n", hostname, hostport, path);
 
     cache_item_t *cached = cache_find(&cache, hostname, hostport, path);
     if (!cached) {
-        dbg_printf("direct serve!\n");
+        dbg_printf("direct serve: hostname: %s, hostport: %s, path: %s\n", hostname, hostport, path);
         direct_serve(connfd, hostname, hostport, path, method);
     } else {
-        dbg_printf("serve from cache!\n");
+        dbg_printf("serve from cache: hostname: %s, hostport: %s, path: %s\n", hostname, hostport, path);
         cache_serve(connfd, cached);
     }
 }
@@ -136,7 +135,7 @@ void direct_serve(int connfd, char *hostname, char *hostport, char *path, char *
     char *obj_cache_p = obj_cache_base_p;
     ssize_t readNum, totalNum = 0;
     while ((readNum = Rio_readnb(&client_rio, buf, MAXLINE))) {
-        if ((totalNum + readNum) < MAX_OBJECT_SIZE) {
+        if ((totalNum + readNum) <= MAX_OBJECT_SIZE) {
             memcpy(obj_cache_p, buf, readNum);
             obj_cache_p += readNum;
         }

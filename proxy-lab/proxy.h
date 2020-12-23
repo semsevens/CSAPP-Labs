@@ -3,7 +3,7 @@
 #define __PROXY_H__
 
 #ifndef MAX_CACHE_SIZE
-#define MAX_CACHE_SIZE 1049000
+#define MAX_CACHE_SIZE 1048576
 #endif
 
 #ifndef MAX_OBJECT_SIZE

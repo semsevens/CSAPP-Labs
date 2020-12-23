@@ -19,6 +19,7 @@ typedef struct cache_item {
 typedef struct cache {
     cache_item_t *cache_listp;
     size_t total_size;
+    int curr_lru;
 } cache_t;
 
 void cache_init(cache_t *cp);
