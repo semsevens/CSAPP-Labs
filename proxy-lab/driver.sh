@@ -25,10 +25,10 @@ PORT_START=1024
 PORT_MAX=65000
 MAX_PORT_TRIES=10
 
-# MAX_CACHE_SIZE: 50K
-MAX_CACHE_SIZE=51200
+# MAX_CACHE_SIZE: 40K
+MAX_CACHE_SIZE=40960
 # MAX_OBJECT_SIZE: 30K
-MAX_OBJECT_SIZE=30690
+MAX_OBJECT_SIZE=30720
 
 # List of text and binary files for the basic test
 BASIC_LIST="home.html
@@ -40,7 +40,7 @@ BASIC_LIST="home.html
 # List of text files for the cache test
 # godzilla.gif  12,155 bytes
 # godzilla.jpg  10,858 bytes
-# tiny          40,536 bytes 
+# tiny          40,536 bytes    not cached
 # home.html     120 bytes
 # csapp.c       24,654 bytes
 # csapp.h       6,633 bytes
@@ -198,7 +198,7 @@ done
 # fi
 
 # Always build proxy
-make -B 2> /dev/null
+make -B || exit 1
 
 # Make sure we have an existing executable nop-server.py file
 if [ ! -x ./nop-server.py ]
@@ -381,7 +381,7 @@ wait_for_port_use "${tiny_port}"
 # Run the proxy
 proxy_port=$(free_port)
 echo "Starting proxy on port ${proxy_port}"
-./proxy ${proxy_port} &> /dev/null &
+./proxy ${proxy_port} &
 proxy_pid=$!
 
 # Wait for the proxy to start in earnest
@@ -391,6 +391,7 @@ wait_for_port_use "${proxy_port}"
 clear_dirs
 for file in ${CACHE_LIST}
 do
+    echo
     echo "Fetching ./tiny/${file} into ${PROXY_DIR} using the proxy"
     download_proxy $PROXY_DIR ${file} "http://localhost:${tiny_port}/${file}" "http://localhost:${proxy_port}"
 done
@@ -403,7 +404,7 @@ wait $tiny_pid 2> /dev/null
 cacheScore=0
 
 # Try to fetch a large object that not been cached
-echo "Trying to fetch a large object: ./tiny/${LARGE_FILE}"
+echo "Trying to fetch a large object: ./tiny/${LARGE_FILE}, which is not cached and should be different by 'diff' command"
 download_proxy $NOPROXY_DIR ${LARGE_FILE} "http://localhost:${tiny_port}/${LARGE_FILE}" "http://localhost:${proxy_port}"
 # the result SHOULD be different from the cached version
 diff -q ./tiny/${LARGE_FILE} ${NOPROXY_DIR}/${LARGE_FILE}  &> /dev/null

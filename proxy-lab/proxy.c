@@ -20,6 +20,8 @@ static const char *user_agent_hdr = "User-Agent: Mozilla/5.0 (X11; Linux x86_64;
 sbuf_t sbuf;
 /* Web content cache, shared by all connections */
 cache_t cache;
+/* Reader-writer queue to protect shared cache */
+rw_queue_t rw_queue;
 
 int main(int argc, char **argv) {
     if (argc != 2) {
@@ -44,6 +46,9 @@ int main(int argc, char **argv) {
 
     // init cache
     cache_init(&cache);
+
+    // init rw queue
+    rw_queue_init(&rw_queue);
 
     int connfd;
     socklen_t clientlen;
@@ -92,7 +97,12 @@ void doit(int connfd) {
         return;
     };
 
+    // cache read operation protected by rw queue
+    rw_token_t token;
+    rw_queue_request_read(&rw_queue, &token);
     cache_item_t *cached = cache_find(&cache, hostname, hostport, path);
+    rw_queue_release(&rw_queue);
+
     if (!cached) {
         dbg_printf("direct serve: hostname: %s, hostport: %s, path: %s\n", hostname, hostport, path);
         direct_serve(connfd, hostname, hostport, path, method);
@@ -149,7 +159,11 @@ void direct_serve(int connfd, char *hostname, char *hostport, char *path, char *
         dbg_printf("%s:%s%s can be cached, object size: %zd\n", hostname, hostport, path, totalNum);
         cache_item_t *obj = build_cache_item(hostname, hostport, path, obj_cache_base_p, totalNum);
 
+        // cache write operation protected by rw queue
+        rw_token_t token;
+        rw_queue_request_write(&rw_queue, &token);
         cache_insert(&cache, obj);
+        rw_queue_release(&rw_queue);
     } else {
         dbg_printf("%s:%s%s cannot be cached, object size: %zd\n", hostname, hostport, path, totalNum);
     }
