@@ -94,7 +94,7 @@ choose fall 2017 because this semester's videos are available on youtube
 - [x] Thread-Level Parallelism
   - [x] reading 12.6
   - [x] video
-- [ ] Future of Computing I
-  - [ ] video
+- [x] Future of Computing I
+  - [x] video
 - [ ] Future of Computing II
   - [ ] video
