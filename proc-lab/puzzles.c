@@ -261,6 +261,29 @@ void safe_printf(const char *format, ...);
 
 /*note: this is a handler for SIGCHLD*/
 void reaper(int sig) {
+    sigset_t mask_all, prev_all;
+    pid_t pid;
+    int status;
+
+    sigfillset(&mask_all);
+
+    while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
+        // block signals to protect global variable
+        sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
+        // normal exit
+        if (WIFEXITED(status)) {
+            safe_printf("Job (%d) exited with status %d\n", pid, WEXITSTATUS(status));
+        }
+        // terminated by signal
+        else if (WIFSIGNALED(status)) {
+            safe_printf("Job (%d) terminated by signal %d\n", pid, WTERMSIG(status));
+        }
+        // stopped by signal
+        else if (WIFSTOPPED(status)) {
+            safe_printf("Job (%d) stopped by signal %d\n", pid, WSTOPSIG(status));
+        }
+        sigprocmask(SIG_SETMASK, &prev_all, NULL);
+    }
 }
 
 /*****************************************************************************\
