@@ -224,7 +224,28 @@ void decipher(const char *encrypted_words[]) {
 *******************************************************************************
 \*****************************************************************************/
 void counter(int num_direct_children) {
-    exit(0);
+    if (num_direct_children == 0) {
+        exit(1);
+    }
+
+    sigset_t mask_all, prev_all;
+    sigfillset(&mask_all);
+
+    pid_t pid;
+    int status;
+    int n = 1;
+    while ((pid = waitpid(-1, &status, 0)) > 0) {
+        // block signals to protect global variable
+        sigprocmask(SIG_BLOCK, &mask_all, &prev_all);
+
+        if (WIFEXITED(status)) {
+            n += WEXITSTATUS(status);
+        }
+
+        sigprocmask(SIG_SETMASK, &prev_all, NULL);
+    }
+
+    exit(n);
 }
 
 /*****************************************************************************\
