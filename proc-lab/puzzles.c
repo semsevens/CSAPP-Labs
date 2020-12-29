@@ -16,6 +16,13 @@
 
 extern char **environ; /* Defined by libc */
 
+void sleep_millisecond(int milliseconds) {
+    struct timespec ts;
+    ts.tv_sec = milliseconds / 1e3;
+    ts.tv_nsec = (milliseconds % (int)1e3) * 1e6;
+    nanosleep(&ts, NULL);
+}
+
 /* The type for signal handler functions
  * You can use this. */
 typedef void (*sighandler_t)(int);
@@ -151,11 +158,7 @@ void printAletter();
 
 /* @param pid - the pid of the child process*/
 void racer1(int pid) {
-    int sleep_milliseconds = 10;
-    struct timespec ts;
-    ts.tv_sec = sleep_milliseconds / 1e3;
-    ts.tv_nsec = (sleep_milliseconds % (int)1e3) * 1e6;
-    nanosleep(&ts, NULL);
+    sleep_millisecond(10);
     /*do not remove this line*/
     printAletter();
 }
@@ -295,22 +298,122 @@ void reaper(int sig) {
 /** You need to call this in each of your signal handler */
 void signal_received(int signum);
 
+typedef void handler_t(int);
+handler_t *Signal(int signum, handler_t *handler) {
+    struct sigaction action, old_action;
+
+    action.sa_handler = handler;
+    sigemptyset(&action.sa_mask); /* Block sigs of type being handled */
+    action.sa_flags = SA_RESTART; /* Restart syscalls if possible */
+
+    if (sigaction(signum, &action, &old_action) < 0) {
+        fprintf(stderr, "Signal error: %s\n", strerror(errno));
+        exit(0);
+    }
+    return (old_action.sa_handler);
+}
+
+int alrm_hit = 0, usr1_hit = 0, usr2_hit = 0, cont_hit = 0, chld_hit = 0;
+
+void sigalrm_handler(int sig) {
+    int olderrno = errno;
+    if (alrm_hit == 0) {
+        signal_received(sig);
+        alrm_hit = 1;
+    }
+    errno = olderrno;
+}
+
+void sigusr1_handler(int sig) {
+    int olderrno = errno;
+    if (usr1_hit == 0) {
+        signal_received(sig);
+        usr1_hit = 1;
+    }
+    errno = olderrno;
+}
+
+void sigusr2_handler(int sig) {
+    int olderrno = errno;
+    if (usr2_hit == 0) {
+        signal_received(sig);
+        usr2_hit = 1;
+    }
+    errno = olderrno;
+}
+
+void sigcont_handler(int sig) {
+    int olderrno = errno;
+    if (cont_hit == 0) {
+        signal_received(sig);
+        cont_hit = 1;
+    }
+    errno = olderrno;
+}
+
+void sigchld_handler(int sig) {
+    int olderrno = errno;
+    if (chld_hit == 0) {
+        signal_received(sig);
+        chld_hit = 1;
+    }
+    errno = olderrno;
+}
+
 /** 
  * Setup your signal handlers here.
  *
  */
 void shower_setup(void) {
+    sigset_t mask_all;
+    sigfillset(&mask_all);
+    sigprocmask(SIG_BLOCK, &mask_all, NULL);
+
+    Signal(SIGALRM, sigalrm_handler);
+    Signal(SIGUSR1, sigusr1_handler);
+    Signal(SIGUSR2, sigusr2_handler);
+    Signal(SIGCONT, sigcont_handler);
+    Signal(SIGCHLD, sigchld_handler);
 }
 
 /**
  * Block off the appropriate signals
  */
 void shower_run(void) {
-    /* Please remove the loop below when you start on this puzzle.
-     * It acts as a delay so that you can see some
-     * words get printed out.     */
-    int i;
-    for (i = 0; i < 10; i++) {
-        sleep(1);
+    sigset_t mask_all;
+
+    sigfillset(&mask_all);
+    sigdelset(&mask_all, SIGALRM);
+    sigprocmask(SIG_SETMASK, &mask_all, NULL);
+    while (alrm_hit == 0) {
+        sleep_millisecond(10);
+    }
+
+    sigfillset(&mask_all);
+    sigdelset(&mask_all, SIGUSR1);
+    sigprocmask(SIG_SETMASK, &mask_all, NULL);
+    while (usr1_hit == 0) {
+        sleep_millisecond(10);
+    }
+
+    sigfillset(&mask_all);
+    sigdelset(&mask_all, SIGUSR2);
+    sigprocmask(SIG_SETMASK, &mask_all, NULL);
+    while (usr2_hit == 0) {
+        sleep_millisecond(10);
+    }
+
+    sigfillset(&mask_all);
+    sigdelset(&mask_all, SIGCONT);
+    sigprocmask(SIG_SETMASK, &mask_all, NULL);
+    while (cont_hit == 0) {
+        sleep_millisecond(10);
+    }
+
+    sigfillset(&mask_all);
+    sigdelset(&mask_all, SIGCHLD);
+    sigprocmask(SIG_SETMASK, &mask_all, NULL);
+    while (chld_hit == 0) {
+        sleep_millisecond(10);
     }
 }
