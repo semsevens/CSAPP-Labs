@@ -11,6 +11,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 
 /* The type for signal handler functions
@@ -148,11 +149,23 @@ void printAletter();
 
 /* @param pid - the pid of the child process*/
 void racer1(int pid) {
+    int sleep_milliseconds = 10;
+    struct timespec ts;
+    ts.tv_sec = sleep_milliseconds / 1e3;
+    ts.tv_nsec = (sleep_milliseconds % (int)1e3) * 1e6;
+    nanosleep(&ts, NULL);
     /*do not remove this line*/
     printAletter();
 }
 
 void setup_race2() {
+    sigset_t mask_one, prev_one;
+
+    sigemptyset(&mask_one);
+    sigaddset(&mask_one, SIGCHLD);
+
+    // block SIGCHLD before fork
+    sigprocmask(SIG_BLOCK, &mask_one, &prev_one);
 }
 
 /* @param pid - the pid of the child process*/
