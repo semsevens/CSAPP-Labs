@@ -96,5 +96,5 @@ choose fall 2017 because this semester's videos are available on youtube
   - [x] video
 - [x] Future of Computing I
   - [x] video
-- [ ] Future of Computing II
-  - [ ] video
+- [x] Future of Computing II
+  - [x] video
