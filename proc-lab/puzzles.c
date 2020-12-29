@@ -14,6 +14,8 @@
 #include <time.h>
 #include <unistd.h>
 
+extern char **environ; /* Defined by libc */
+
 /* The type for signal handler functions
  * You can use this. */
 typedef void (*sighandler_t)(int);
@@ -181,6 +183,39 @@ void racer2(int pid) {
 \*****************************************************************************/
 
 void decipher(const char *encrypted_words[]) {
+    char *word;
+    pid_t pid;
+    char *argv[3];
+    argv[0] = "./decipher";
+    argv[2] = NULL;
+    for (int i = 0; (word = (char *)encrypted_words[i]); i++) {
+        argv[1] = word;
+
+        sigset_t mask_one, prev_one;
+
+        sigemptyset(&mask_one);
+        sigaddset(&mask_one, SIGCHLD);
+
+        // block SIGCHLD before fork to avoid race condition
+        sigprocmask(SIG_BLOCK, &mask_one, &prev_one);
+
+        if ((pid = fork()) == 0) { /* Child runs user job */
+            // unblock SIGCHLD in child process
+            sigprocmask(SIG_SETMASK, &prev_one, NULL);
+            // change to child process's own process group
+            setpgid(0, 0);
+            if (execve(argv[0], argv, environ) < 0) {
+                printf("%s: Command not found\n", argv[0]);
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        int status;
+        if (waitpid(pid, &status, 0) < 0) {
+            printf("waitpid error\n");
+            exit(EXIT_FAILURE);
+        }
+    }
 }
 
 /*****************************************************************************\
