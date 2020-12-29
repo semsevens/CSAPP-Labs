@@ -8,7 +8,7 @@
 - [x] Lab5: shell lab
 - [x] Lab6: malloc lab
 - [x] Lab7: proxy lab
-- [ ] Lab Hidden: proc lab (focus on process control and signal handling, similar to shell lab)
+- [x] Lab Hidden: proc lab (focus on process control and signal handling, similar to shell lab)
 
 Lab materials are from [student website](http://csapp.cs.cmu.edu/3e/labs.html)
 
