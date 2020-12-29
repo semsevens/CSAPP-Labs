@@ -3,19 +3,21 @@
  * @author <your name here>
  * @andrewid <andrew ID here>
  */
- 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+
+#include <errno.h>
 #include <signal.h>
-#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <unistd.h>
 
 /* The type for signal handler functions
  * You can use this. */
 typedef void (*sighandler_t)(int);
 
+int is_timeout = 0;
 
 /*****************************************************************************\
 *******************************************************************************
@@ -46,30 +48,38 @@ typedef void (*sighandler_t)(int);
  *            However, in any case, the buffer will still be null-terminated.
  *                   
  *  */
-ssize_t mygets(char* buf, int buf_size);
+ssize_t mygets(char *buf, int buf_size);
+
+void alarm_sig_hander(int sig) {
+    int olderrno = errno;
+
+    if (sig == SIGALRM) {
+        is_timeout = 1;
+    }
+
+    errno = olderrno;
+}
 
 /**
  * Use this to set the alarm signal handler.
  * @param alarm_handler  Address of the Signal handler for SIGALRM
  * @return SIG_ERR on error; otherwise the address of the previous handler
  */
-sighandler_t set_alarm_handler(sighandler_t alarm_handler)
-{
+sighandler_t set_alarm_handler(sighandler_t alarm_handler) {
     struct sigaction action, old_action;
 
-    action.sa_handler = alarm_handler;  
+    action.sa_handler = alarm_handler;
     sigemptyset(&action.sa_mask); /* block sigs of type being handled */
-    
+
     /* Make sure you do not specify SA_RESTART,
     SA_RESTART will cause IO functions to be restarted when
     they are interrupted by signals. */
-    action.sa_flags = 0;  
+    action.sa_flags = 0;
 
-    if (sigaction(SIGALRM, &action, &old_action) < 0)
-    {
+    if (sigaction(SIGALRM, &action, &old_action) < 0) {
         return SIG_ERR;
     }
-    
+
     return old_action.sa_handler;
 }
 
@@ -105,23 +115,26 @@ sighandler_t set_alarm_handler(sighandler_t alarm_handler)
  *           signal handler before returning!
  *
  * */
-ssize_t tgets(char* buf, int buf_size, int timeout_secs)
-{
+ssize_t tgets(char *buf, int buf_size, int timeout_secs) {
     ssize_t num_read = 0;
-    
+
     /* TODO: set up your alarm handler here */
-    
+    sighandler_t old_hander = set_alarm_handler(alarm_sig_hander);
+
     /* Use this to read a line */
+    alarm(timeout_secs);
     num_read = mygets(buf, buf_size);
-    
+
     /* TODO: restore alarm handler */
-    
-    
+    set_alarm_handler(old_hander);
+
     /* TODO: check the return value of mygets */
-    
+    if (num_read == -1 && errno == EINTR) {
+        return is_timeout ? 0 : -1;
+    }
 
     /* TODO: change the return value  */
-    return 0;
+    return num_read;
 }
 
 /*****************************************************************************\
@@ -133,24 +146,19 @@ ssize_t tgets(char* buf, int buf_size, int timeout_secs)
 /* helper functions */
 void printAletter();
 
-
 /* @param pid - the pid of the child process*/
-void racer1(int pid)
-{
-  /*do not remove this line*/
-  printAletter();
+void racer1(int pid) {
+    /*do not remove this line*/
+    printAletter();
 }
 
-void setup_race2()
-{
-
+void setup_race2() {
 }
 
 /* @param pid - the pid of the child process*/
-void racer2(int pid)
-{
-  /*do not remove this line*/
-  printAletter();
+void racer2(int pid) {
+    /*do not remove this line*/
+    printAletter();
 }
 
 /*****************************************************************************\
@@ -159,20 +167,16 @@ void racer2(int pid)
 *******************************************************************************
 \*****************************************************************************/
 
-void decipher(const char* encrypted_words[])
-{
-    
+void decipher(const char *encrypted_words[]) {
 }
-
 
 /*****************************************************************************\
 *******************************************************************************
 **  Counter Puzzle
 *******************************************************************************
 \*****************************************************************************/
-void counter(int num_direct_children)
-{
-  exit(0);    
+void counter(int num_direct_children) {
+    exit(0);
 }
 
 /*****************************************************************************\
@@ -186,11 +190,8 @@ void counter(int num_direct_children)
  */
 void safe_printf(const char *format, ...);
 
-
 /*note: this is a handler for SIGCHLD*/
-void reaper(int sig)
-{
-
+void reaper(int sig) {
 }
 
 /*****************************************************************************\
@@ -206,23 +207,18 @@ void signal_received(int signum);
  * Setup your signal handlers here.
  *
  */
-void shower_setup(void)
-{ 
-
+void shower_setup(void) {
 }
 
 /**
  * Block off the appropriate signals
  */
-void shower_run(void)
-{
+void shower_run(void) {
     /* Please remove the loop below when you start on this puzzle.
      * It acts as a delay so that you can see some
      * words get printed out.     */
     int i;
-    for (i = 0; i < 10; i ++)
-    {
+    for (i = 0; i < 10; i++) {
         sleep(1);
     }
 }
-
